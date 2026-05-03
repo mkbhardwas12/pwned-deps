@@ -1,0 +1,102 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pwned-deps"
+version = "0.1.0"
+description = "Drop your lockfile in, find out if you're pwned. Compromised-package scanner backed by OSV.dev."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "YOUR_GH_USERNAME", email = "YOUR_GH_USERNAME@users.noreply.github.com" },
+]
+keywords = [
+    "supply-chain",
+    "security",
+    "lockfile",
+    "osv",
+    "malicious-packages",
+    "shai-hulud",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+# Runtime dependencies are intentionally empty at Step 1. Each subsequent
+# step adds only what it needs and pins it (with hashes) in the dev
+# `requirements.lock`. Production runtime deps are introduced from Step
+# 4 onward (httpx) and Step 6 (click + rich).
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/YOUR_GH_USERNAME/pwned-deps"
+Repository = "https://github.com/YOUR_GH_USERNAME/pwned-deps"
+Issues = "https://github.com/YOUR_GH_USERNAME/pwned-deps/issues"
+Changelog = "https://github.com/YOUR_GH_USERNAME/pwned-deps/blob/main/CHANGELOG.md"
+
+[project.scripts]
+# Wired up in Step 6 once cli.py exists. Listed here for visibility.
+# pwned-deps = "pwned_deps.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pwned_deps"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/pwned_deps",
+    "tests",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "pyproject.toml",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "network: tests that hit live api.osv.dev (opt-in via -m network)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "W",     # pycodestyle warnings
+    "B",     # flake8-bugbear
+    "I",     # isort
+    "S",     # flake8-bandit (security)
+    "UP",    # pyupgrade
+    "RUF",   # ruff-specific
+]
+ignore = [
+    "E501",  # line length handled by formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]  # asserts are fine in tests
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true

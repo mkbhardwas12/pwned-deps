@@ -1,0 +1,7 @@
+// INERT hand-crafted go.sum.
+example.com/foo v1.2.3 h1:abcd1234abcd1234abcd1234abcd1234abcd1234abcd
+example.com/foo v1.2.3/go.mod h1:abcd1234abcd1234abcd1234abcd1234abcd1234abcd
+example.com/bar v0.5.0 h1:11112222333344445555666677778888aaaabbbbccccddd
+example.com/bar v0.5.0/go.mod h1:11112222333344445555666677778888aaaabbbbccccddd
+github.com/stretchr/testify v1.9.0 h1:hash
+github.com/stretchr/testify v1.9.0/go.mod h1:hash

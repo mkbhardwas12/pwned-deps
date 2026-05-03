@@ -1,0 +1,27 @@
+# INERT hand-crafted pnpm-lock.yaml. Mixes lockfileVersion 5 (slash-keyed)
+# and 6+ (at-keyed) layouts so tests can cover both.
+lockfileVersion: '6.0'
+
+dependencies:
+  lodash:
+    specifier: ^4.17.21
+    version: 4.17.21
+  '@cap-js/sqlite':
+    specifier: ^2.2.2
+    version: 2.2.2
+
+packages:
+  /lodash/4.17.21:
+    resolution: { integrity: sha512-fake }
+    dev: false
+
+  /@cap-js/sqlite/2.2.2:
+    resolution: { integrity: sha512-fake }
+    dev: false
+
+  'react@18.2.0':
+    resolution: { integrity: sha512-fake }
+
+  'react@18.2.0(peer@4.5.6)':
+    resolution: { integrity: sha512-fake }
+    # duplicate after suffix strip — must dedup

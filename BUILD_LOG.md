@@ -1130,3 +1130,127 @@ preliminarily implemented in Step 6) is the same shape; no schema
 file is required for it. Proceeding to Step 9 (remaining ecosystem
 parsers).
 
+---
+
+## Step 9 — Remaining ecosystem parsers
+
+### Plan
+
+Six parsers, one file each:
+
+- `parsers/pnpm.py` — `pnpm-lock.yaml`. YAML; the top-level
+  `packages` map is keyed by `pkg-name@version` strings.
+- `parsers/yarn.py` — `yarn.lock`. v1 (Berry: handles both v1
+  classic and v6+ Berry). v1 is a custom format; v2/Berry is YAML.
+  Detect by the `__metadata` block (Berry) vs the absence of it (v1).
+- `parsers/cargo.py` — `Cargo.lock`. TOML with `[[package]]`.
+- `parsers/go.py` — `go.sum` (and optionally `go.mod`). go.sum is
+  one line per `(module version hash)` triple, two lines per
+  module (one for the module, one for `/go.mod`). Dedup.
+- `parsers/maven.py` — `pom.xml`. Walk `<dependencies>` and
+  `<dependencyManagement><dependencies>` (the brief flags
+  `<dependencyManagement>` explicitly). Skip property-variable
+  versions (`${foo}`) — emit `version_unspecified=True`.
+- `parsers/gem.py` — `Gemfile.lock`. Indented custom format; parse
+  the `GEM` block's `specs:` list.
+
+Each parser registered in `cli.py::_DETECTORS` so directory
+autodetect picks them up.
+
+`pyyaml` is added to `requirements.lock` (for pnpm + yarn Berry)
+and declared as a runtime dep in `pyproject.toml`.
+
+Test gate (from brief §7 Step 9): ≥3 unit tests per ecosystem on
+real-world-shaped fixtures (committed to
+`tests/fixtures/<ecosystem>/`).
+
+Plausible failure modes:
+- yarn.lock v1 syntax is a custom DSL that's *not* YAML; parsing
+  with PyYAML yields a confusing error. We use a simple
+  hand-written line scanner.
+- pom.xml in real projects often uses property variables
+  (`${some.version}`). We surface those as
+  `version_unspecified=True` rather than try to resolve.
+- go.sum has both `module version` and `module version/go.mod`
+  variants of every entry — dedup by `(module, version)`.
+
+### Gate — paste of real output
+
+#### `make test`
+
+```
+collected 94 items / 1 deselected / 93 selected
+
+tests/advisory/test_cache.py .....                                       [  5%]
+tests/advisory/test_extras.py ......                                     [ 11%]
+tests/advisory/test_matcher.py ....                                      [ 16%]
+tests/advisory/test_osv_client.py ........                               [ 24%]
+tests/advisory/test_version_match.py ................                    [ 41%]
+tests/parsers/test_npm.py ........                                       [ 50%]
+tests/parsers/test_other_ecosystems.py ..................                [ 69%]
+tests/parsers/test_pypi.py .........                                     [ 79%]
+tests/test_cli.py .........                                              [ 89%]
+tests/test_report_sarif.py .....                                         [ 94%]
+tests/test_smoke.py ..                                                   [ 96%]
+tests/test_step7_mini_shaihulud.py ...                                   [100%]
+
+======================= 93 passed, 1 deselected in 0.18s =======================
+```
+
+18 new ecosystem tests in `test_other_ecosystems.py` — 3 each for
+Cargo, Go, pnpm, yarn, Maven, RubyGems. Brief required ≥3 per
+ecosystem.
+
+#### Multi-ecosystem directory autodetect
+
+Hand-built `/tmp/pd-multi/` with one fixture from each new ecosystem:
+
+```
+$ ls /tmp/pd-multi/
+Cargo.lock  Gemfile.lock  go.sum  pnpm-lock.yaml  pom.xml  yarn.lock
+
+$ docker run --rm -v "$PWD":/work -v /tmp/pd-multi:/multi:ro -w /work \
+    -e PYTHONPATH=/work/src pwned-deps-dev \
+    python -m pwned_deps.cli check /multi --offline \
+    --cache-path /tmp/cache.sqlite --ci
+pwned-deps 0.1.0 — checking /multi/pnpm-lock.yaml (npm)
+pwned-deps 0.1.0 — checking /multi/yarn.lock (npm)
+pwned-deps 0.1.0 — checking /multi/Cargo.lock (crates.io)
+pwned-deps 0.1.0 — checking /multi/go.sum (Go)
+pwned-deps 0.1.0 — checking /multi/pom.xml (Maven)
+pwned-deps 0.1.0 — checking /multi/Gemfile.lock (RubyGems)
+
+COMPROMISED — 2 package(s)
+  @cap-js/sqlite@2.2.2
+    EXTRA-2026-0001  Mini Shai-Hulud (SAP CAP)
+    ...
+  @cap-js/sqlite@2.2.2
+    EXTRA-2026-0001  Mini Shai-Hulud (SAP CAP)
+    ...
+
+20 packages scanned · 2 compromised · 0 high/critical · 0 low/medium
+exit=1
+```
+
+Both `@cap-js/sqlite@2.2.2` hits originate from the pnpm fixture
+and the yarn-Berry fixture — proving the bundled Mini Shai-Hulud
+campaign matches across both new npm-ecosystem parsers.
+
+#### `make lint`
+
+```
+All checks passed!
+```
+
+(Initial run flagged 3 issues — unused loop variable, stale
+`# noqa` directive, blank line before single-line statement. All
+fixed.)
+
+### Step 9 status
+
+**Gate green.** Six new parsers wired into the CLI's autodetect
+list. Multi-ecosystem directory scan works end-to-end and the
+bundled Mini Shai-Hulud campaign matches across pnpm + yarn.
+`pyyaml==6.0.2` pinned (runtime + dev). Proceeding to Step 10
+(CI/CD workflow files; write only, no push).
+

@@ -27,8 +27,14 @@ from pwned_deps.advisory.cache import Cache, default_cache_path
 from pwned_deps.advisory.extras import ExtrasFeed
 from pwned_deps.advisory.matcher import Matcher
 from pwned_deps.advisory.osv_client import OsvClient
+from pwned_deps.parsers import cargo as cargo_parser
+from pwned_deps.parsers import gem as gem_parser
+from pwned_deps.parsers import go as go_parser
+from pwned_deps.parsers import maven as maven_parser
 from pwned_deps.parsers import npm as npm_parser
+from pwned_deps.parsers import pnpm as pnpm_parser
 from pwned_deps.parsers import pypi as pypi_parser
+from pwned_deps.parsers import yarn as yarn_parser
 from pwned_deps.parsers.base import Lockfile, ParseError
 from pwned_deps.report.json_out import render_json
 from pwned_deps.report.sarif import render_sarif
@@ -38,11 +44,17 @@ from pwned_deps.report.text import ScanReport, render_text
 _DETECTORS: list[tuple[str, object]] = [
     ("package-lock.json", npm_parser.parse),
     ("npm-shrinkwrap.json", npm_parser.parse),
+    ("pnpm-lock.yaml", pnpm_parser.parse),
+    ("yarn.lock", yarn_parser.parse),
     ("requirements.txt", pypi_parser.parse),
     ("requirements.lock", pypi_parser.parse),
     ("Pipfile.lock", pypi_parser.parse),
     ("poetry.lock", pypi_parser.parse),
     ("uv.lock", pypi_parser.parse),
+    ("Cargo.lock", cargo_parser.parse),
+    ("go.sum", go_parser.parse),
+    ("pom.xml", maven_parser.parse),
+    ("Gemfile.lock", gem_parser.parse),
 ]
 
 

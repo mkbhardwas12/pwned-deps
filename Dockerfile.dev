@@ -1,0 +1,50 @@
+# Dev container for pwned-deps.
+#
+# Safety contract (mirrors BUILD_BRIEF.md §2):
+#   - Runs as non-root user `appuser` (UID 1000).
+#   - Installs ONLY tools listed in `requirements.lock` (pinned). Never
+#     installs the packages we are scanning — lockfile parsing is text
+#     and JSON only.
+#   - Base image is pinned to a SHA256 digest, not just the tag, to
+#     avoid surprise upstream changes.
+#   - Network is denied in the locked-down test/lint runs (Makefile
+#     applies `--network none --read-only --tmpfs /tmp -v $PWD:/work:ro
+#     --rm`).
+#
+# TODO(pin-base-digest): the FROM line below is a floating tag for the
+# first build. Run `make pin-base` after that build to capture the
+# python:3.12-slim digest into `base-image.lock`, then replace the FROM
+# line with the pinned digest. Until pinned, the build still works
+# against the floating tag — but pinning is required before any first
+# PyPI release.
+
+FROM python@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3
+# pin-base-digest: python:3.12-slim as of 2026-05-03; refresh via `make pin-base`.
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Create non-root user. UID 1000 matches the typical host user so that
+# bind-mounted files have sane ownership.
+ARG APP_UID=1000
+ARG APP_GID=1000
+RUN groupadd --gid ${APP_GID} appuser \
+ && useradd --uid ${APP_UID} --gid ${APP_GID} --create-home --shell /bin/bash appuser \
+ && mkdir -p /work \
+ && chown -R appuser:appuser /work
+
+WORKDIR /work
+
+# Install only the pinned dev tooling. Production runtime deps are added
+# in later build steps as they become needed.
+COPY requirements.lock /tmp/requirements.lock
+RUN pip install --no-cache-dir -r /tmp/requirements.lock \
+ && rm /tmp/requirements.lock
+
+# Drop privileges before any source is touched.
+USER appuser
+
+# Default command opens an interactive shell so `make shell` works.
+CMD ["/bin/bash"]

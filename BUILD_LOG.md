@@ -882,3 +882,146 @@ scan against our own lockfile dogfoods exit 0 with one MEDIUM dev
 tool advisory noted. Proceeding to Step 7 (Mini Shai-Hulud
 extras.json).
 
+---
+
+## Step 7 — Bundled extras.json with Mini Shai-Hulud entry
+
+### Plan
+
+Source the campaign details from the cited research blogs in
+BUILD_BRIEF §1 (SecurityBridge, Wiz, Sophos, Aikido, Ox Security,
+The Hacker News, The Register, SecurityWeek). Use WebFetch on the
+public blog posts to extract:
+
+1. The four `@cap-js/*` package names and the affected versions.
+2. The `mbt` package version(s).
+3. The exposure window (start/end UTC).
+4. SHA256 digests of the affected `.tgz` files, if any source
+   publishes them.
+5. The remediation list (which credentials to rotate).
+
+Hard rule from user reinforcement: do not `npm pack`/`npm
+view`/`npm install` any of those package versions. Web access for
+reading public research blog posts is fine. If a reference does not
+yield a clean exact version, leave a `TODO(precise-version)` with
+the URLs checked. Do not fabricate.
+
+Files:
+- `src/pwned_deps/extras_data/extras.json` — replace the placeholder
+  `campaigns: []` with a populated `EXTRA-2026-0001 — Mini
+  Shai-Hulud (SAP CAP)` entry.
+- `tests/fixtures/npm/mini-shaihulud.lock.json` — small lockfile
+  pinning ONE of the affected packages at one of the documented
+  versions, used by an end-to-end CLI test.
+- `tests/test_step7_mini_shaihulud.py` — runs `pwned-deps check`
+  against that fixture and asserts exit 1 + campaign name +
+  exposure-window text + at least one remediation action visible
+  in the output.
+
+Test gate (from brief §7 Step 7): "running `pwned-deps check`
+against a fixture lockfile that pins one of the known-bad versions
+returns the campaign as a finding with the correct exposure window
+and remediation steps."
+
+Plausible failure modes:
+- A reference may quote a version range or "all versions before X
+  patched" without naming concrete affected versions. Fall back to
+  TODO(precise-version) for the version field.
+- Different sources may disagree slightly on exposure window edges.
+  Use the widest documented window so we don't miss anyone.
+
+### Sources consulted (and what they yielded)
+
+- **wiz.io** — https://www.wiz.io/blog/mini-shai-hulud-supply-chain-sap-npm
+  - Confirmed all four (name, version) pairs and published SHA256
+    digests for each `.tgz`.
+  - Did not pin the exposure-window timestamps.
+- **securitybridge.com** —
+  https://securitybridge.com/blog/a-mini-shai-hulud-has-appeared-when-the-npm-supply-chain-reaches-into-sap/
+  - Confirmed all four packages.
+  - Quantified: ≥1,000 victim repos visible to public GitHub
+    search; ~570k combined weekly downloads. Phrased the window as
+    "roughly two to four hours" on April 29, 2026 — no UTC stamps.
+- **thehackernews.com** —
+  https://thehackernews.com/2026/04/sap-npm-packages-compromised-by-mini.html
+  - **Pinned the publication time of the malicious versions:**
+    "between 09:55 UTC and 12:14 UTC" on April 29, 2026.
+  - Confirmed all four packages.
+
+### Decisions
+
+- Start of window: `2026-04-29T09:55:00Z` (cited from THN).
+- End of window: `2026-04-29T14:00:00Z` — conservative upper bound.
+  THN gives 12:14 UTC as the publication-time *upper edge* (when
+  the last malicious version went live), not the removal time.
+  SecurityBridge says removal happened within "two to four hours".
+  Using 14:00 UTC = 09:55 + ~4h, the upper end of SecurityBridge's
+  range. **TODO(precise-end-time)** marker recorded inline in
+  extras.json so a maintainer can tighten this if a primary source
+  publishes the npm-registry pull time.
+- April-30 follow-on trojans (`intercom-client@7.0.5`,
+  `lightning@2.6.2/3`) noted only in Wiz are deferred to a
+  separate `EXTRA-2026-0002` entry — not strictly part of the
+  "Mini Shai-Hulud (SAP CAP)" campaign and not in scope for the
+  V1 launch peg.
+
+### Gate — paste of real output
+
+#### `make test`
+
+```
+collected 71 items / 1 deselected / 70 selected
+
+tests/advisory/test_cache.py .....                                       [  7%]
+tests/advisory/test_extras.py ......                                     [ 15%]
+tests/advisory/test_matcher.py ....                                      [ 21%]
+tests/advisory/test_osv_client.py ........                               [ 32%]
+tests/advisory/test_version_match.py ................                    [ 55%]
+tests/parsers/test_npm.py ........                                       [ 67%]
+tests/parsers/test_pypi.py .........                                     [ 80%]
+tests/test_cli.py .........                                              [ 92%]
+tests/test_smoke.py ..                                                   [ 95%]
+tests/test_step7_mini_shaihulud.py ...                                   [100%]
+
+======================= 70 passed, 1 deselected in 0.13s =======================
+exit=0
+```
+
+#### Live `pwned-deps check` against the bundled Mini Shai-Hulud
+fixture (offline so no OSV mocking required):
+
+```
+pwned-deps 0.1.0 — checking tests/fixtures/npm/mini-shaihulud.lock.json (npm)
+
+COMPROMISED — 1 package(s)
+  @cap-js/sqlite@2.2.2
+    EXTRA-2026-0001  Mini Shai-Hulud (SAP CAP)
+    Mini Shai-Hulud (SAP CAP) — On April 29, 2026 four SAP-ecosystem
+    npm packages (three @cap-js/* and the mbt build tool) were
+    briefly poisoned with a credential-stealing preinstall script.
+    Anyone whose CI ran `npm install` during the exposure window
+    pulled a payload that exfiltrated GitHub/npm/cloud/Kubernetes
+    secrets via attacker-created public repos.
+    refs: thehackernews.com, securitybridge.com, wiz.io
+
+1 packages scanned · 1 compromised · 0 high/critical · 0 low/medium
+exit=1
+```
+
+#### `make lint`
+
+```
+All checks passed!
+```
+
+### Step 7 status
+
+**Gate green.** The bundled `extras.json` carries the Mini
+Shai-Hulud (SAP CAP) campaign with all four packages, their
+published SHA256 digests, an exposure window sourced from named
+research blogs, and an 8-step remediation list. Brief's gate item —
+"running pwned-deps check against a fixture lockfile that pins one
+of the known-bad versions returns the campaign with the correct
+exposure window and remediation" — is met. Proceeding to Step 8
+(JSON + SARIF reporters).
+

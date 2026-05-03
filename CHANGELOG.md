@@ -62,3 +62,14 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   reporter. `[project.scripts] pwned-deps = "pwned_deps.cli:main"`
   wired. 9 new CliRunner tests. `click==8.1.7` and `rich==13.9.4`
   pinned.
+- Step 7 — Mini Shai-Hulud (SAP CAP) campaign in bundled
+  `extras_data/extras.json`: all four affected packages
+  (`@cap-js/sqlite@2.2.2`, `@cap-js/postgres@2.2.2`,
+  `@cap-js/db-service@2.10.1`, `mbt@1.2.48`) with published SHA256
+  digests, an exposure window of `2026-04-29T09:55:00Z →
+  2026-04-29T14:00:00Z` (start cited from thehackernews.com; end is
+  a conservative upper bound, marked `TODO(precise-end-time)`), and
+  an 8-step remediation list. Sources: thehackernews.com,
+  securitybridge.com, wiz.io. End-to-end test
+  (`test_step7_mini_shaihulud.py`) drives the COMPROMISED branch on
+  a fixture pinning `@cap-js/sqlite@2.2.2`.

@@ -22,3 +22,7 @@ tomli==2.0.2
 # Step 4 — runtime HTTP client for OSV. Pinned explicitly (otherwise it
 # rides in transitively via pytest-httpx).
 httpx==0.27.2
+# Step 5 — version comparison for PyPI (PEP 440) + range matching for
+# extras.json campaigns. Already a transitive dep of pytest; pinning
+# explicitly so the runtime install doesn't drift.
+packaging==26.2

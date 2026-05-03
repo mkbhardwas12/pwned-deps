@@ -41,3 +41,13 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   advisories) supporting negative caching and TTL. MAL-* IDs are
   promoted to severity CRITICAL. 13 unit tests + 1 opt-in live
   network test. `httpx==0.27.2` pinned.
+- Step 5 — Matcher + extras.json. `advisory/version_match.py` minimal
+  range matcher supporting `=`, `==`, `!=`, `<`, `<=`, `>`, `>=`,
+  AND-joined; PEP 440 for PyPI, conservative SemVer-style for npm
+  with prerelease ordering; `advisory/extras.py` loads bundled
+  extras.json + optional user-supplied feed paths and produces
+  `CampaignMatch` records; `advisory/matcher.py` combines extras
+  campaigns with OSV findings into `Finding` records carrying
+  `is_malicious` + `campaign_name`. Bundled `extras_data/extras.json`
+  is a placeholder pending Step 7 Mini Shai-Hulud research. 26 new
+  tests. `packaging==26.2` pinned as a runtime dep.

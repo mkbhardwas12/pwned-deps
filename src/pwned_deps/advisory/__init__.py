@@ -7,7 +7,18 @@
 """
 
 from pwned_deps.advisory.cache import Cache
+from pwned_deps.advisory.extras import CampaignMatch, ExtrasFeed
+from pwned_deps.advisory.matcher import Finding, Matcher
 from pwned_deps.advisory.osv_client import OsvClient
 from pwned_deps.advisory.types import Advisory, Severity
 
-__all__ = ["Advisory", "Cache", "OsvClient", "Severity"]
+__all__ = [
+    "Advisory",
+    "Cache",
+    "CampaignMatch",
+    "ExtrasFeed",
+    "Finding",
+    "Matcher",
+    "OsvClient",
+    "Severity",
+]

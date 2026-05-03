@@ -1025,3 +1025,108 @@ of the known-bad versions returns the campaign with the correct
 exposure window and remediation" — is met. Proceeding to Step 8
 (JSON + SARIF reporters).
 
+---
+
+## Step 8 — JSON + SARIF v2.1.0 reporters
+
+### Plan
+
+Files:
+- `src/pwned_deps/report/sarif.py` — produces a SARIF v2.1.0 log
+  conforming to the OASIS schema. One `tool.driver.rules` entry
+  per unique advisory ID; `results[].level` mapped per BUILD_BRIEF
+  §7 Step 8 (MAL-* + CRITICAL + HIGH → `error`, MEDIUM →
+  `warning`, LOW → `note`); `results[].partialFingerprints` for
+  stable dedup across runs (sha256 of `{rule_id}|{package}|{version}|{lockfile}`).
+- `src/pwned_deps/report/json_out.py` — already produces a valid
+  JSON; tighten the schema and add stable ordering.
+- `tests/fixtures/sarif-2.1.0-schema.json` — bundled OASIS SARIF
+  v2.1.0 schema (fetched from json.schemastore.org).
+- `tests/test_report_sarif.py` — generates SARIF for the bundled
+  Mini Shai-Hulud fixture, validates against the schema with
+  `jsonschema`, asserts key fields.
+- Wire `--format sarif` in `cli.py` to call the real renderer (was
+  a stub).
+
+`jsonschema` becomes a dev-only dep (test gate only). Pinning in
+`requirements.lock` (not pyproject.toml runtime).
+
+Test gate (from brief §7 Step 8): "scan a known-malicious fixture,
+emit SARIF, validate against bundled schema (jsonschema), assert
+key fields." The brief also mentions "Upload to a sandbox GitHub
+repo and confirm the SARIF appears in Code Scanning alerts" — that
+needs GitHub auth + a test repo, which is out-of-scope for this
+local build (we don't push). Documented as a manual verification
+step in the V1 acceptance section.
+
+Plausible failure modes:
+- SARIF schema is large (~140 KB) and uses many `$ref`s; vendoring
+  the file from `json.schemastore.org` should still satisfy
+  `jsonschema.validate`.
+- `partialFingerprints` keys are case-sensitive and require an
+  alphanumeric local part. Use `primaryLocationLineHash` (a
+  predefined SARIF key).
+
+### Gate — paste of real output
+
+#### `make test`
+
+```
+collected 76 items / 1 deselected / 75 selected
+
+tests/advisory/test_cache.py .....                                       [  6%]
+tests/advisory/test_extras.py ......                                     [ 14%]
+tests/advisory/test_matcher.py ....                                      [ 20%]
+tests/advisory/test_osv_client.py ........                               [ 30%]
+tests/advisory/test_version_match.py ................                    [ 52%]
+tests/parsers/test_npm.py ........                                       [ 62%]
+tests/parsers/test_pypi.py .........                                     [ 74%]
+tests/test_cli.py .........                                              [ 86%]
+tests/test_report_sarif.py .....                                         [ 93%]
+tests/test_smoke.py ..                                                   [ 96%]
+tests/test_step7_mini_shaihulud.py ...                                   [100%]
+
+======================= 75 passed, 1 deselected in 0.16s =======================
+exit=0
+```
+
+5 new SARIF tests:
+- Validates SARIF output for a malicious finding against the
+  bundled OASIS schema with `jsonschema.validate`.
+- Asserts top-level fields (`version=2.1.0`, `tool.driver.name`,
+  `tool.driver.version`, `informationUri`, `rules`).
+- Confirms the level mapping per the brief (malicious + HIGH /
+  CRITICAL → `error`).
+- Confirms `partialFingerprints.primaryLocationLineHash` is stable
+  across two render passes (sha256 of
+  `rule_id|package|version|lockfile`).
+- End-to-end: `pwned-deps check ... --format sarif` against the
+  bundled Mini Shai-Hulud fixture validates against the schema and
+  surfaces `EXTRA-2026-0001` in the rules block.
+
+Bundled OASIS schema: 111,720 bytes at
+`tests/fixtures/sarif/sarif-2.1.0-schema.json`.
+
+#### `make lint`
+
+```
+All checks passed!
+```
+
+### Out-of-scope: GitHub Code Scanning upload
+
+The brief mentions "Upload to a sandbox GitHub repo and confirm the
+SARIF appears in Code Scanning alerts". That requires GitHub auth
+and a test repository that the local build does not have (no push,
+no token generation per the user's reinforcement). Documented in
+the V1 acceptance section as a manual verification step the
+maintainer runs before tagging V1.0.0.
+
+### Step 8 status
+
+**Gate green.** SARIF output validates against the bundled OASIS
+schema and surfaces every required field. JSON output (already
+preliminarily implemented in Step 6) is the same shape; no schema
+file is required for it. Proceeding to Step 9 (remaining ecosystem
+parsers).
+

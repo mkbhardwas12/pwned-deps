@@ -73,3 +73,12 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   securitybridge.com, wiz.io. End-to-end test
   (`test_step7_mini_shaihulud.py`) drives the COMPROMISED branch on
   a fixture pinning `@cap-js/sqlite@2.2.2`.
+- Step 8 — SARIF v2.1.0 output. `report/sarif.py` produces a
+  schema-conforming SARIF log (driver name/version/informationUri,
+  unique rules per advisory ID, results with level mapping per the
+  brief, stable `partialFingerprints.primaryLocationLineHash` for
+  GitHub Code Scanning dedup). `--format sarif` is now wired in
+  the CLI. 5 new tests including end-to-end validation against the
+  bundled OASIS schema (111 KB at
+  `tests/fixtures/sarif/sarif-2.1.0-schema.json`). `jsonschema`
+  added as a dev-only dep.

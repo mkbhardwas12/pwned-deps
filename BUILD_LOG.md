@@ -365,3 +365,95 @@ All checks passed!
 
 **Gate green.** Proceeding to Step 3 (pip / Python lockfile parsers).
 
+---
+
+## Step 3 — pip / Python lockfile parsers
+
+### Plan
+
+Files:
+- `src/pwned_deps/parsers/pypi.py` — exposes `parse(path) -> Lockfile`
+  that auto-dispatches based on filename to one of four format
+  handlers: `_parse_requirements_txt`, `_parse_pipfile_lock`,
+  `_parse_poetry_lock`, `_parse_uv_lock`.
+- TOML handling: try `tomllib` (stdlib ≥3.11), fall back to `tomli`
+  (added to `requirements.lock` for the dev container; PyPI users on
+  3.10 will get it as a runtime dep — added in pyproject.toml later).
+- `tests/fixtures/pypi/{requirements.txt, Pipfile.lock, poetry.lock,
+  uv.lock}` — INERT text files only, hand-crafted.
+- `tests/parsers/test_pypi.py` — ≥4 unit tests (target ≥6).
+
+API shape committed:
+
+```python
+def parse(path: str | Path) -> Lockfile: ...
+# auto-dispatch by filename. Internal helpers exposed for tests.
+```
+
+Loose pins (`>=`, `<`, `~=`, etc.) in `requirements.txt` are emitted
+as `Package(version_unspecified=True)`. The matcher in Step 5 will
+exclude `version_unspecified=True` from advisory matching with a
+clear note in the report. Editable installs (`-e .`), VCS URLs
+(`git+https://...`), local paths (`./mylib`), `-r requirements-dev.txt`
+includes, and inline comments are all gracefully skipped.
+
+Test gate (≥6 tests):
+1. Pinned `requirements.txt` (`==`) → list of packages.
+2. Loose `requirements.txt` (`>=`, `<`, `~=`) → emitted with
+   `version_unspecified=True`.
+3. Editables, VCS URLs, local paths, comments, `-r` includes →
+   ignored without crash.
+4. `Pipfile.lock` → packages from `default` + `develop`.
+5. `poetry.lock` → packages from `[[package]]` array.
+6. `uv.lock` → packages from `[[package]]` array, skipping workspace
+   roots (no `version` field).
+
+Plausible failure modes:
+- TOML import differs between 3.10 and 3.11+. We probe both.
+- `Pipfile.lock` versions are stored as `"==1.2.3"` strings; strip
+  the `==` prefix.
+- `poetry.lock` and `uv.lock` are structurally similar but not
+  identical (uv has `dependencies` arrays of strings; poetry has
+  more shapes). Keep helpers separate to avoid a leaky abstraction.
+
+### Gate — paste of real output
+
+#### `make test`
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-8.3.3, pluggy-1.6.0
+cachedir: /tmp/.pytest_cache
+rootdir: /work
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.13.0, httpx-0.32.0
+collected 19 items
+
+tests/parsers/test_npm.py ........                                       [ 42%]
+tests/parsers/test_pypi.py .........                                     [ 89%]
+tests/test_smoke.py ..                                                   [100%]
+
+============================== 19 passed in 0.02s ==============================
+exit=0
+```
+
+9 PyPI parser tests covering: pinned `requirements.txt` (with extras
+stripped + line-continuation tolerated), loose pins flagged
+`version_unspecified=True`, editable/VCS/local-path skip,
+`Pipfile.lock` default+develop merge, `poetry.lock` `[[package]]`
+extraction, `uv.lock` workspace-root skip, unrecognised filename
+ParseError, corrupted JSON ParseError, corrupted TOML ParseError.
+Brief required ≥4.
+
+#### `make lint`
+
+```
+All checks passed!
+```
+
+### Step 3 status
+
+**Gate green.** `tomli==2.0.2` was added to `requirements.lock` and the
+container rebuilt. Proceeding to Step 4 (OSV client + SQLite cache).
+

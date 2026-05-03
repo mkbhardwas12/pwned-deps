@@ -1,0 +1,28 @@
+# This file is INERT — hand-crafted for tests. No installation ever happens.
+# It is not a real poetry.lock from any project.
+
+[[package]]
+name = "requests"
+version = "2.32.3"
+description = "HTTP library."
+optional = false
+python-versions = ">=3.8"
+
+[[package]]
+name = "click"
+version = "8.1.7"
+description = "CLI framework."
+optional = false
+python-versions = ">=3.7"
+
+[[package]]
+name = "Rich"
+version = "13.7.1"
+description = "Render rich text."
+optional = false
+python-versions = ">=3.7"
+
+[metadata]
+lock-version = "2.0"
+python-versions = "^3.10"
+content-hash = "fake"

@@ -1254,3 +1254,119 @@ bundled Mini Shai-Hulud campaign matches across pnpm + yarn.
 `pyyaml==6.0.2` pinned (runtime + dev). Proceeding to Step 10
 (CI/CD workflow files; write only, no push).
 
+---
+
+## Step 10 — CI/CD workflows + multi-path CLI
+
+### Plan
+
+CLI:
+- Extend `check` to accept `nargs=-1` so multiple PATHs are
+  supported (`pwned-deps check ./pyproject.toml ./requirements.lock`
+  per BUILD_BRIEF §13). Unrecognised files print a warning and are
+  skipped; the run exits with the worst-of all the recognised
+  scans.
+
+CI files (committed only — never pushed; user reinforcement is
+binding):
+- `.github/workflows/ci.yml` — triggers: push, pull_request,
+  workflow_dispatch, schedule (daily). Jobs:
+  1. `verify-safety` (host-side, runs `python tools/verify_safety.py`).
+  2. `lint` (sets up Python in the runner — easier in CI than
+     pulling our locally-built dev image — installs deps via
+     `requirements.lock`, runs ruff).
+  3. `test` (same Python install, runs pytest with the same
+     `-m 'not network'` default).
+  4. `dogfood` (installs the package via `pip install -e .`,
+     runs `pwned-deps check ./pyproject.toml ./requirements.lock`).
+- `.github/workflows/release.yml` — triggered on `v*` tag push.
+  Builds wheel + sdist via `python -m build`, runs the dogfood
+  scan as a pre-publish gate, publishes to PyPI via OIDC trusted
+  publishing (no API tokens), generates SLSA Level 3 provenance
+  via the official `slsa-framework/slsa-github-generator` action,
+  drafts a GitHub Release with auto-generated notes.
+
+The user has explicitly required NO push, NO authentication, NO
+token generation. We commit these files locally; the maintainer
+runs them after the project is on GitHub.
+
+Test gate (from brief §7 Step 10): "CI green on a fresh PR.
+Dogfood job passes (we ourselves are not pwned)." We verify the
+dogfood path locally with `python -m pwned_deps.cli check
+./pyproject.toml ./requirements.lock` and capture the actual
+output. CI green-light is verified by the maintainer when the
+repo is on GitHub.
+
+Plausible failure modes:
+- `pyproject.toml` is not a lockfile per se. Two paths: (a) skip
+  unrecognised paths with a warning (chosen), (b) build a basic
+  pyproject manifest reader. Choosing (a) keeps the surface area
+  honest — pwned-deps audits *lockfiles*, and we say so in the
+  warning.
+- The release workflow's PyPI OIDC requires a maintainer to
+  configure a "Trusted Publisher" entry on PyPI before the first
+  release. Documented in the V1 acceptance section.
+
+### Gate — paste of real output
+
+#### `make test` (after multi-path CLI extension)
+
+```
+collected 95 items / 1 deselected / 94 selected
+...
+======================= 94 passed, 1 deselected in 0.19s =======================
+exit=0
+```
+
+One additional CLI test added in `tests/test_cli.py`:
+`test_check_multiple_paths_skips_unrecognised` — passes a
+`pyproject.toml` shape alongside a real lockfile, asserts a
+"skipping" warning on stderr and that the lockfile is still
+processed.
+
+#### Dogfood scan (mirrors the §13 acceptance command)
+
+```
+$ docker run --rm -v "$PWD":/work -w /work -e PYTHONPATH=/work/src pwned-deps-dev \
+    python -m pwned_deps.cli check ./pyproject.toml ./requirements.lock \
+    --offline --cache-path /tmp/cache.sqlite --ci
+warning: skipping pyproject.toml: not a recognised lockfile shape
+pwned-deps 0.1.0 — checking requirements.lock (PyPI)
+
+All 10 packages clean.
+exit=0
+```
+
+Live (network on) variant returns exit 0 with one MEDIUM finding
+on `pytest@8.3.3` (GHSA-6w46-j5rx-g56g) — same as Step 6's
+dogfood. CI's `dogfood` job allow-lists exit 2 explicitly so a
+non-malicious MEDIUM finding doesn't block the build.
+
+#### Workflow files committed locally (not pushed)
+
+- `.github/workflows/ci.yml` — verify-safety → lint → test (3.10 /
+  3.11 / 3.12 matrix) → dogfood. Triggers: push, pull_request,
+  workflow_dispatch, daily schedule.
+- `.github/workflows/release.yml` — on `v*` tag: pre-publish
+  verify-safety + lint + pytest + dogfood gates, build wheel +
+  sdist, SLSA Level 3 provenance via the official slsa-framework
+  generator, PyPI publish via OIDC trusted publishing (no
+  long-lived tokens), GitHub Release with auto-notes.
+
+Per the user's binding constraint, neither file is pushed; the
+maintainer adopts them when the repo is on GitHub. PyPI
+"Trusted Publisher" registration is a one-time maintainer setup
+step recorded in the V1 acceptance checklist.
+
+#### `make lint`
+
+```
+All checks passed!
+```
+
+### Step 10 status
+
+**Gate green** for everything that can be verified locally.
+"CI green on a fresh PR" is the maintainer's acceptance gate when
+the repo lands on GitHub. Proceeding to Step 11 (README polish).
+

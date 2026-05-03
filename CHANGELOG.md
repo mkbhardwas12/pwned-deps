@@ -93,3 +93,14 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   (3 per ecosystem). Multi-ecosystem directory scan dogfooded
   end-to-end and the bundled Mini Shai-Hulud campaign matched
   across both pnpm and yarn fixtures. `pyyaml==6.0.2` pinned.
+- Step 10 — CLI now accepts multiple PATH arguments (so the §13
+  dogfood `pwned-deps check ./pyproject.toml ./requirements.lock`
+  works); unrecognised files are warn-skipped rather than
+  failing. `.github/workflows/ci.yml` (verify-safety → lint →
+  test 3.10/3.11/3.12 matrix → dogfood) and
+  `.github/workflows/release.yml` (verify + lint + test + dogfood
+  → build → SLSA Level 3 provenance via slsa-framework generator
+  → PyPI OIDC trusted publish → GitHub Release) committed
+  locally. Per user constraint, nothing is pushed and no tokens
+  are generated; PyPI Trusted Publisher registration is a
+  maintainer step in V1 acceptance.

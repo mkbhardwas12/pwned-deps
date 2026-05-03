@@ -66,7 +66,9 @@ def main() -> None:
 
 @main.command()
 @click.argument(
-    "path",
+    "paths",
+    nargs=-1,
+    required=True,
     type=click.Path(exists=True, path_type=Path),
 )
 @click.option(
@@ -117,7 +119,7 @@ def main() -> None:
 @click.pass_context
 def check(
     ctx: click.Context,
-    path: Path,
+    paths: tuple[Path, ...],
     fmt: str,
     offline: bool,
     ci: bool,
@@ -126,9 +128,18 @@ def check(
     feed_file: Path | None,
     cache_path: Path | None,
 ) -> None:
-    """Scan PATH (a lockfile or a directory) for compromised packages."""
+    """Scan one or more PATHs (lockfiles or directories) for compromised packages."""
 
-    targets = _discover_targets(path)
+    targets: list[tuple[Path, object]] = []
+    for path in paths:
+        discovered = _discover_targets(path)
+        if not discovered and path.is_file():
+            click.echo(
+                f"warning: skipping {path}: not a recognised lockfile shape",
+                err=True,
+            )
+            continue
+        targets.extend(discovered)
     if not targets:
         click.echo("no recognised lockfiles found", err=True)
         ctx.exit(0)
@@ -224,19 +235,25 @@ def version_cmd() -> None:
 
 
 def _discover_targets(path: Path) -> list[tuple[Path, object]]:
-    """Return list of ``(lockfile_path, parser_callable)`` to scan."""
+    """Return list of ``(lockfile_path, parser_callable)`` to scan.
+
+    Returns an empty list when ``path`` is a file we don't recognise;
+    the caller surfaces a "skipping" warning so the user knows we
+    saw the file but did nothing with it.
+    """
 
     if path.is_file():
         for filename, parser in _DETECTORS:
             if path.name == filename:
                 return [(path, parser)]
-        # Fall back to extension-based detection: a `*.txt` is treated
-        # as a requirements file; `*-lock.json` is npm.
+        # Extension-based fallback: `*.txt` → requirements;
+        # `*lock*.json` → npm-style.
+        lower = path.name.lower()
         if path.suffix == ".txt":
             return [(path, pypi_parser.parse)]
-        if path.suffix == ".json" and "lock" in path.name.lower():
+        if path.suffix == ".json" and "lock" in lower:
             return [(path, npm_parser.parse)]
-        return [(path, pypi_parser.parse)]  # last-resort; will raise ParseError if wrong
+        return []
 
     if not path.is_dir():
         return []

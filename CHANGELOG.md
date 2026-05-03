@@ -104,3 +104,11 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   locally. Per user constraint, nothing is pushed and no tokens
   are generated; PyPI Trusted Publisher registration is a
   maintainer step in V1 acceptance.
+- Step 11 — README polish. Added badges (CI, PyPI, Python versions,
+  license), expanded threat model section (network allow-list,
+  container dev, OIDC, dogfood), added FAQ, fleshed out the
+  comparison table with a license column and explicit "where
+  osv-scanner is the right answer" honesty, expanded the
+  contributing flow with the 5-minute campaign-PR procedure, and
+  added a maintenance-cadence section reflecting the brief's
+  burnout-mitigation guidance.

@@ -1,0 +1,30 @@
+# Anything not needed inside the dev image. Keep this image small and
+# minimize exposure of the host workspace to the build context.
+.git/
+.github/
+.claude/
+.idea/
+.vscode/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+htmlcov/
+.coverage*
+.DS_Store
+
+# Documentation does not need to be inside the container.
+README.md
+CHANGELOG.md
+BUILD_BRIEF.md
+BUILD_LOG.md
+LICENSE
+
+# Captured digest belongs in the host repo, not the image.
+base-image.lock

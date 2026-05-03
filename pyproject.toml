@@ -40,6 +40,7 @@ classifiers = [
 # are the loose floor for `pip install pwned-deps` users.
 dependencies = [
     "httpx >=0.27,<1.0",
+    "packaging >=24.0,<28.0",
     "tomli >=2.0; python_version < '3.11'",
 ]
 

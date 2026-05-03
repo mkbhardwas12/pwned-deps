@@ -598,3 +598,115 @@ documented above. `httpx==0.27.2` pinned in requirements.lock and
 declared as a runtime dep in pyproject.toml. Proceeding to Step 5
 (matcher + extras).
 
+---
+
+## Step 5 — Matcher + extras.json
+
+### Plan
+
+Files:
+- `src/pwned_deps/advisory/extras.py` — loads bundled extras.json
+  (`src/pwned_deps/extras_data/extras.json`, populated for real in
+  Step 7) plus optional user-supplied path/URL. Per campaign,
+  iterates packages and tests version specs against each lockfile
+  entry.
+- `src/pwned_deps/advisory/version_match.py` — minimal
+  SemVer/PEP-440 range matcher supporting ops `=`, `==`, `!=`,
+  `<`, `<=`, `>`, `>=`, AND-joined with `,`. Exact-version strings
+  are also supported as shorthand. PyPI uses `packaging.version`;
+  npm uses a tuple compare with prerelease awareness.
+- `src/pwned_deps/advisory/matcher.py` — `Finding` dataclass +
+  `Matcher.match(lockfile) -> list[Finding]`. Combines OSV findings
+  (via `OsvClient.query_batch`) with extras.json campaign hits.
+  Each Finding carries `is_malicious` and an optional
+  `campaign_name`.
+- `src/pwned_deps/extras_data/extras.json` — placeholder valid
+  payload at this step. Real Mini Shai-Hulud data lands in Step 7
+  with proper source citations.
+- Tests: `tests/advisory/test_version_match.py`,
+  `tests/advisory/test_extras.py`, `tests/advisory/test_matcher.py`.
+
+API shape committed:
+
+```python
+@dataclass(frozen=True)
+class Finding:
+    package: Package
+    advisory: Advisory
+    is_malicious: bool
+    campaign_name: str | None = None
+
+class Matcher:
+    def __init__(self, *, osv_client: OsvClient, extras: ExtrasFeed) -> None: ...
+    def match(self, lockfile: Lockfile) -> list[Finding]: ...
+
+class ExtrasFeed:
+    @classmethod
+    def from_bundled(cls, *, user_paths: Sequence[Path] = ()) -> ExtrasFeed: ...
+    def find_matches(self, lockfile: Lockfile) -> list[Finding]: ...
+```
+
+`packaging` is already a transitive dep of pytest; we'll declare it
+explicitly in pyproject.toml runtime deps and pin `packaging==26.2`
+in requirements.lock for determinism.
+
+Test gate (from brief §7 Step 5):
+1. `lodash@4.17.15` produces ≥1 OSV finding (mocked).
+2. Fake `@cap-js/foo@1.2.3` matching a bundled-extras campaign
+   yields `is_malicious=True` and `campaign_name=...`.
+3. No false positives on benign packages.
+4. Range matching: `>=4.17.0,<4.17.21` hits `4.17.15` but not
+   `4.17.22`.
+
+Plausible failure modes:
+- npm prereleases (`1.0.0-rc.1`) compare differently from stable
+  versions in SemVer. The minimal comparator must at least put
+  pre-releases below the corresponding non-pre version.
+- An extras.json with a malformed campaign should be ignored with
+  a warning, not crash the whole scan.
+
+### Gate — paste of real output
+
+#### `make test`
+
+```
+============================= test session starts ==============================
+collected 59 items / 1 deselected / 58 selected
+
+tests/advisory/test_cache.py .....                                       [  8%]
+tests/advisory/test_extras.py ......                                     [ 18%]
+tests/advisory/test_matcher.py ....                                      [ 25%]
+tests/advisory/test_osv_client.py ........                               [ 39%]
+tests/advisory/test_version_match.py ................                    [ 67%]
+tests/parsers/test_npm.py ........                                       [ 81%]
+tests/parsers/test_pypi.py .........                                     [ 96%]
+tests/test_smoke.py ..                                                   [100%]
+
+======================= 58 passed, 1 deselected in 0.09s =======================
+exit=0
+```
+
+26 new tests this step:
+- `test_version_match.py` (16): exact, range AND, inequality,
+  PEP 440 PyPI specials, npm prerelease, garbage tolerance.
+- `test_extras.py` (6): exact + range matches, no false positives,
+  user-supplied feed loading, malformed feed graceful, unspecified
+  packages skipped.
+- `test_matcher.py` (4): OSV finding for lodash, extras campaign
+  marks `is_malicious=True` + `campaign_name`, clean lockfile,
+  unspecified-version short-circuit (no OSV call).
+
+Brief required 4 specific gates: lodash OSV (✓), `@cap-js/foo`
+malicious (✓), no false positives (✓), range matching (✓).
+
+#### `make lint`
+
+Initial run flagged a Unicode `×` (multiplication sign) in a
+docstring as RUF002 ambiguous-character. Replaced with ASCII
+`x`. Re-run: `All checks passed!`.
+
+### Step 5 status
+
+**Gate green.** `packaging>=24.0,<28.0` declared as a runtime dep,
+`packaging==26.2` pinned. Proceeding to Step 6 (CLI).
+

@@ -19,3 +19,6 @@ ruff==0.7.4
 # Step 3 — TOML reading on Python 3.10. On 3.11+ the parser uses stdlib
 # tomllib; tomli is the fallback for 3.10 distributions.
 tomli==2.0.2
+# Step 4 — runtime HTTP client for OSV. Pinned explicitly (otherwise it
+# rides in transitively via pytest-httpx).
+httpx==0.27.2

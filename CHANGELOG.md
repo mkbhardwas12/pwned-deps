@@ -82,3 +82,14 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   bundled OASIS schema (111 KB at
   `tests/fixtures/sarif/sarif-2.1.0-schema.json`). `jsonschema`
   added as a dev-only dep.
+- Step 9 — six additional ecosystem parsers wired into the CLI's
+  autodetect list: `parsers/cargo.py` (`Cargo.lock`),
+  `parsers/go.py` (`go.sum`), `parsers/pnpm.py` (`pnpm-lock.yaml`,
+  v5 + v6 key styles), `parsers/yarn.py` (`yarn.lock` v1 classic +
+  v2/Berry YAML), `parsers/maven.py` (`pom.xml`,
+  `<dependencies>` + `<dependencyManagement>`, property-variable
+  versions surfaced as `version_unspecified=True`),
+  `parsers/gem.py` (`Gemfile.lock` GEM block). 18 new unit tests
+  (3 per ecosystem). Multi-ecosystem directory scan dogfooded
+  end-to-end and the bundled Mini Shai-Hulud campaign matched
+  across both pnpm and yarn fixtures. `pyyaml==6.0.2` pinned.

@@ -1,0 +1,25 @@
+# INERT hand-crafted Cargo.lock for parser tests.
+version = 3
+
+[[package]]
+name = "serde"
+version = "1.0.219"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fake"
+
+[[package]]
+name = "serde_json"
+version = "1.0.140"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fake"
+dependencies = ["serde"]
+
+[[package]]
+name = "demo"
+version = "0.1.0"
+# workspace root — no source — but parser still records it.
+
+[[package]]
+name = "broken-entry"
+# missing version — must be skipped silently
+source = "registry+https://example"

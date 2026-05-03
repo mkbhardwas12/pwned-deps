@@ -200,3 +200,38 @@ def test_update_creates_cache(tmp_path: Path) -> None:
     result = runner.invoke(main, ["update", "--cache-path", str(cache_path)])
     assert result.exit_code == 0
     assert cache_path.exists()
+
+
+def test_check_multiple_paths_skips_unrecognised(
+    tmp_path: Path, httpx_mock: HTTPXMock
+) -> None:
+    """Mirrors the §13 dogfood pattern: pass an unrecognised manifest
+    (pyproject.toml shape) alongside a real lockfile. The unrecognised
+    file should produce a warning on stderr and the run should report
+    the lockfile findings only."""
+
+    manifest = tmp_path / "pyproject.toml"
+    manifest.write_text("[project]\nname = 'x'\n", encoding="utf-8")
+
+    httpx_mock.add_response(
+        url="https://api.osv.dev/v1/querybatch",
+        method="POST",
+        json={"results": [{}]},
+    )
+
+    runner = CliRunner(mix_stderr=False)
+    result = runner.invoke(
+        main,
+        [
+            "check",
+            str(manifest),
+            str(NPM_FIXTURES / "clean.lock.json"),
+            "--cache-path",
+            str(_isolated_cache(tmp_path)),
+            "--ci",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    assert "skipping" in (result.stderr or "")
+    assert "clean.lock.json" in result.output

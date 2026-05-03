@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write # required for PyPI OIDC trusted publishing
+  attestations: write
+
+jobs:
+  build:
+    name: build wheel + sdist
+    runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned dev dependencies
+        run: pip install -r requirements.lock
+      - name: Pre-publish gates
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          python tools/verify_safety.py src tests
+          ruff check src/ tests/
+          pytest -ra
+      - name: Build wheel + sdist
+        run: |
+          pip install build
+          python -m build
+      - name: Pre-publish dogfood — must NOT be exit 1
+        run: |
+          pip install dist/*.whl
+          set +e
+          pwned-deps check ./pyproject.toml ./requirements.lock --ci
+          rc=$?
+          set -e
+          if [ "$rc" -eq 1 ]; then
+            echo "RELEASE BLOCKED: pwned-deps found a malicious package in our own deps."
+            exit 1
+          fi
+      - name: Compute SLSA-friendly hashes for built artifacts
+        id: hash
+        run: |
+          cd dist
+          # base64-encoded sha256 manifest, fed to the SLSA generator below
+          echo "hashes=$(sha256sum * | base64 -w0)" >> "$GITHUB_OUTPUT"
+      - name: Upload built artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  provenance:
+    name: SLSA Level 3 provenance
+    needs: [build]
+    permissions:
+      id-token: write
+      contents: write
+      actions: read
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: ${{ needs.build.outputs.hashes }}
+      upload-assets: true
+
+  pypi-publish:
+    name: PyPI publish (OIDC trusted publishing)
+    needs: [build, provenance]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # No `password` / `api_token` — PyPI Trusted Publishers handles auth
+        # via OIDC. The maintainer must register a Trusted Publisher entry
+        # for this repository on PyPI before the first release.
+
+  github-release:
+    name: GitHub Release
+    needs: [build, provenance, pypi-publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Create release with auto-notes
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*

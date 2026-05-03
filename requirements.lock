@@ -1,0 +1,18 @@
+# Dev tooling required inside the dev container at Step 1. Production
+# runtime deps are added in later steps.
+#
+# Pin policy:
+#   - Exact version pins (==).
+#   - Hashes are added once we have a clean `pip-compile --generate-hashes`
+#     run from inside the container. Until then, we install by version
+#     pin only and rely on TLS + PyPI's existing integrity checks.
+#     TODO(step1-followup): regenerate this file with --generate-hashes
+#     inside `make shell` and replace the body with the hashed output.
+#
+# The brief's safety contract §6 demands hashes before any first PyPI
+# release; not strictly required for the dev build to be functional, but
+# we mark it explicit so it doesn't get forgotten.
+
+pytest==8.3.3
+pytest-httpx==0.32.0
+ruff==0.7.4

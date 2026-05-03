@@ -32,3 +32,12 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   emitted with `version_unspecified=True`. Names canonicalised to
   PEP 503 form. 9 unit tests on inert hand-crafted fixtures. `tomli`
   added as a dev dep for Python 3.10 fallback.
+- Step 4 — OSV client + SQLite cache. `advisory/types.py` (`Advisory`,
+  `Severity`); `advisory/osv_client.py` synchronous client using
+  `httpx.Client(trust_env=False)` (host proxy isolation), batches up
+  to 1000 packages via `POST /v1/querybatch`, fetches full details
+  via `GET /v1/vulns/{id}`, exponential-backoff retry on 429/5xx;
+  `advisory/cache.py` SQLite cache with two tables (queries +
+  advisories) supporting negative caching and TTL. MAL-* IDs are
+  promoted to severity CRITICAL. 13 unit tests + 1 opt-in live
+  network test. `httpx==0.27.2` pinned.

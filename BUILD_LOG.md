@@ -457,3 +457,144 @@ All checks passed!
 **Gate green.** `tomli==2.0.2` was added to `requirements.lock` and the
 container rebuilt. Proceeding to Step 4 (OSV client + SQLite cache).
 
+---
+
+## Step 4 — OSV client + SQLite cache
+
+### Plan
+
+Files:
+- `src/pwned_deps/advisory/__init__.py` — re-exports `Advisory`,
+  `OsvClient`, `Cache`, `Severity`.
+- `src/pwned_deps/advisory/types.py` — `Advisory` dataclass + `Severity`
+  StrEnum (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `UNKNOWN`).
+- `src/pwned_deps/advisory/osv_client.py` — `OsvClient` with
+  `query_batch(packages)` calling `POST /v1/querybatch` (chunks of
+  ≤1000) and `GET /v1/vulns/{id}` for full details. Retries on 429/5xx
+  with exponential backoff (max 3 attempts). Uses
+  `httpx.Client(timeout=30, trust_env=False)` — `trust_env=False`
+  is the sandbox second-opinion refinement that protects against host
+  proxy env vars (`HTTPS_PROXY`/`SSL_CERT_FILE`) being silently
+  honoured. The brief's safety contract §2.3 allow-lists only
+  `api.osv.dev`; trust_env=False removes a side-channel.
+- `src/pwned_deps/advisory/cache.py` — SQLite at
+  `~/.cache/pwned-deps/osv.sqlite` (or `XDG_CACHE_HOME` if set, or
+  `%LOCALAPPDATA%` on Windows). Two-table schema (deviation logged
+  below).
+- `tests/advisory/test_osv_client.py`, `tests/advisory/test_cache.py` —
+  unit tests with `pytest-httpx`. Network test marked `@pytest.mark.network`.
+
+API shape committed:
+
+```python
+@dataclass(frozen=True)
+class Advisory:
+    id: str
+    summary: str
+    ecosystem: str
+    package: str
+    version: str
+    references: tuple[str, ...]
+    severity: Severity
+    raw: dict[str, object]
+
+class OsvClient:
+    def __init__(self, *, cache: Cache | None = None,
+                 base_url: str = "https://api.osv.dev",
+                 user_agent: str = ...) -> None: ...
+    def query_batch(self, packages: Sequence[Package]) -> dict[Package, list[Advisory]]: ...
+    def close(self) -> None: ...
+
+class Cache:
+    def __init__(self, path: Path, *, ttl_seconds: int = 86400) -> None: ...
+    def get(self, ecosystem, package, version) -> list[Advisory] | None: ...
+    def put(self, ecosystem, package, version, advisories) -> None: ...
+```
+
+**Schema deviation (logged here, not a divergence from intent):** the
+brief shows one table `advisories(id PK, ecosystem, package, version,
+payload_json, fetched_at)`. With `id` as a sole PK, an advisory that
+affects multiple `(eco, pkg, ver)` tuples can only be stored against
+one — that breaks per-package lookups. We use a composite PK
+`(id, ecosystem, package, version)` and add a separate `queries`
+table tracking last-fetched-at per `(eco, pkg, ver)` so we can tell
+"queried, no advisories" apart from "never queried". Functionally
+equivalent to the brief's intent; faithful to the index `ix_pkg`.
+
+Test gate (≥6 tests):
+1. Single-package query with mocked OSV → expected advisories.
+2. Batch of 50 → per-package mapping correct.
+3. 429 → retry succeeds on second attempt.
+4. Cache hit → no network call (`pytest-httpx` will assert the
+   request count is 0).
+5. TTL: stale entry → re-fetched.
+6. Empty result cached as a negative — second call hits cache,
+   no network.
+7. (Opt-in `pytest -m network`) live OSV: `lodash@4.17.20` returns
+   ≥1 advisory.
+
+Plausible failure modes:
+- `pytest-httpx` defaults to "every request must be matched" and "all
+  responses must be consumed". Tests using fewer mocked responses
+  than expected may fail unless we configure that.
+- Default `~/.cache` path is host-specific; the dev container's
+  `$HOME` is `/home/appuser` and that's tmpfs-mounted in our flags
+  — works inside container, but tests must use `tmp_path` to be
+  hermetic.
+
+### Mid-step refinement
+
+The `@pytest.mark.network` marker was registered but pytest does not
+deselect tests with markers by default. The first run inside the
+locked-down container (`--network none`) failed the live-OSV test
+with `httpx.ConnectError`. Fixed by adding `-m 'not network'` to the
+default `addopts` in `pyproject.toml`. `pytest -m network` from a
+host shell with real network is the documented opt-in path.
+
+### Gate — paste of real output
+
+#### `make test` (locked-down container)
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-8.3.3, pluggy-1.6.0
+cachedir: /tmp/.pytest_cache
+rootdir: /work
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.13.0, httpx-0.32.0
+collected 33 items / 1 deselected / 32 selected
+
+tests/advisory/test_cache.py .....                                       [ 15%]
+tests/advisory/test_osv_client.py ........                               [ 40%]
+tests/parsers/test_npm.py ........                                       [ 65%]
+tests/parsers/test_pypi.py .........                                     [ 93%]
+tests/test_smoke.py ..                                                   [100%]
+
+======================= 32 passed, 1 deselected in 0.06s =======================
+```
+
+13 new advisory tests:
+- Cache: get-when-empty, round-trip, negative-caching distinguishable
+  from never-queried, TTL expiry, put-replaces-existing.
+- OsvClient: single-pkg query, all-clean batch, 50-pkg single-batch,
+  429-then-200 retry, offline-mode short-circuit, cache-hit-skips-net,
+  MAL-* → CRITICAL severity promotion, version_unspecified short-circuit.
+- Plus one live `@pytest.mark.network` test (`lodash@4.17.20`)
+  deselected from default runs.
+
+Brief required ≥6; we have 13.
+
+#### `make lint`
+
+```
+All checks passed!
+```
+
+### Step 4 status
+
+**Gate green.** Schema deviation (composite PK + extra `queries` table)
+documented above. `httpx==0.27.2` pinned in requirements.lock and
+declared as a runtime dep in pyproject.toml. Proceeding to Step 5
+(matcher + extras).
+

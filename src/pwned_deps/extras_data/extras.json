@@ -1,6 +1,59 @@
 {
   "version": 1,
   "updated_at": "2026-05-03T00:00:00Z",
-  "comment": "Placeholder — real campaign payload (Mini Shai-Hulud) lands in Step 7 of the build plan with proper source citations. Step 5 only validates schema + matching code.",
-  "campaigns": []
+  "_comment": "Repo-managed campaigns feed. Append to `campaigns` when a new supply-chain incident is published; cite the named research blog(s) you sourced names + versions + window from. Do NOT fabricate version numbers.",
+  "campaigns": [
+    {
+      "id": "EXTRA-2026-0001",
+      "name": "Mini Shai-Hulud (SAP CAP)",
+      "summary": "On April 29, 2026 four SAP-ecosystem npm packages (three @cap-js/* and the mbt build tool) were briefly poisoned with a credential-stealing preinstall script. Anyone whose CI ran `npm install` during the exposure window pulled a payload that exfiltrated GitHub/npm/cloud/Kubernetes secrets via attacker-created public repos.",
+      "references": [
+        "https://thehackernews.com/2026/04/sap-npm-packages-compromised-by-mini.html",
+        "https://securitybridge.com/blog/a-mini-shai-hulud-has-appeared-when-the-npm-supply-chain-reaches-into-sap/",
+        "https://www.wiz.io/blog/mini-shai-hulud-supply-chain-sap-npm"
+      ],
+      "ecosystem": "npm",
+      "packages": [
+        {
+          "name": "@cap-js/sqlite",
+          "versions": ["2.2.2"],
+          "tarball_sha256": "a1da198bb4e883d077a0e13351bf2c3acdea10497152292e873d79d4f7420211",
+          "source": "wiz.io"
+        },
+        {
+          "name": "@cap-js/postgres",
+          "versions": ["2.2.2"],
+          "tarball_sha256": "1d9e4ece8e13c8eaf94cb858470d1bd8f81bb58f62583552303774fa1579edee",
+          "source": "wiz.io"
+        },
+        {
+          "name": "@cap-js/db-service",
+          "versions": ["2.10.1"],
+          "tarball_sha256": "258257560fe2f1c2cc3924eae40718c829085b52ae3436b4e46d2565f6996271",
+          "source": "wiz.io"
+        },
+        {
+          "name": "mbt",
+          "versions": ["1.2.48"],
+          "tarball_sha256": "86282ebcd3bebf50f087f2c6b00c62caa667cdcb53558033d85acd39e3d88b41",
+          "source": "wiz.io"
+        }
+      ],
+      "exposure_window": [
+        "2026-04-29T09:55:00Z",
+        "2026-04-29T14:00:00Z"
+      ],
+      "_exposure_window_note": "Start time 09:55 UTC is cited from thehackernews.com (publication time of the suspicious versions). End time 14:00 UTC is a CONSERVATIVE upper bound derived from SecurityBridge's 'roughly two to four hours' phrasing — no source we checked publishes an exact removal timestamp. TODO(precise-end-time): replace 14:00 UTC if a source confirms the npm registry pull time.",
+      "actions": [
+        "Search lockfiles, containers, and artifact stores for the four affected (name, version) pairs and any of the published .tgz SHA256 digests.",
+        "If exposure is suspected, treat the host as compromised: re-image rather than uninstall.",
+        "Rotate npm tokens used by affected CI.",
+        "Rotate GitHub Personal Access Tokens.",
+        "Rotate GitHub Actions secrets and any OIDC trusted-publisher mappings the workflow could read.",
+        "Rotate AWS, Azure, GCP, and Kubernetes credentials reachable from the affected CI.",
+        "Audit your GitHub account for newly created public repos with the description 'A Mini Shai-Hulud has Appeared' (the attacker's signature string, per SecurityBridge).",
+        "Pin exact npm versions going forward to prevent silent upgrades to malicious patch releases."
+      ]
+    }
+  ]
 }

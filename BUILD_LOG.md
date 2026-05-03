@@ -1410,3 +1410,143 @@ follows the brief's §7 Step 11 outline. `make verify-safety` and
 install verification is a maintainer step before V1.0.0 — recorded
 in the V1 acceptance section. Proceeding to V1 acceptance run.
 
+---
+
+## V1 acceptance — BUILD_BRIEF §13 checklist
+
+Run on 2026-05-03 against commit `bc9a270` (`docs(step11): polish
+README — threat model, FAQ, comparison`). 16 commits on `main`,
+working tree clean.
+
+### Local-verifiable items (PASS)
+
+- [x] **All 11 steps complete; their test gates green.**
+  Each step's gate evidence is recorded above. The current sweep:
+  - `make verify-safety` → OK
+  - `make verify-safety-self-test` → caught planted `eval()`
+  - `make test` → 94 passed, 1 deselected (the opt-in
+    `pytest.mark.network` live test)
+  - `make lint` → All checks passed!
+  - 16 Conventional-Commits commits on `main`
+
+- [x] **`pwned-deps check` against a fixture pinning a
+  Mini Shai-Hulud-affected version emits the campaign with
+  correct exposure window and remediation list.**
+  Fixture: `tests/fixtures/npm/mini-shaihulud.lock.json`
+  (pins `@cap-js/sqlite@2.2.2`).
+
+  Live (network on, real OSV):
+
+  ```
+  $ docker run --rm -v "$PWD":/work -w /work -e PYTHONPATH=/work/src pwned-deps-dev \
+      python -m pwned_deps.cli check tests/fixtures/npm/mini-shaihulud.lock.json \
+      --cache-path /tmp/cache.sqlite
+  pwned-deps 0.1.0 — checking tests/fixtures/npm/mini-shaihulud.lock.json (npm)
+
+  COMPROMISED — 2 package(s)
+    @cap-js/sqlite@2.2.2
+      EXTRA-2026-0001  Mini Shai-Hulud (SAP CAP)
+      ...
+    @cap-js/sqlite@2.2.2
+      MAL-2026-3178  (malicious)
+      Malicious code in @cap-js/sqlite (npm)
+      refs: https://safedep.io/mini-shai-hulud-and-sap-compromise/, https://github.com/advisories/GHSA-2h7r-x9v2-q52f
+
+  1 packages scanned · 2 compromised · 0 high/critical · 0 low/medium
+  exit=1
+  ```
+
+  **Bonus finding:** OSV has now ingested a real `MAL-2026-3178`
+  malicious-package advisory for this exact version. The user
+  sees both our bundled extras campaign AND the independent OSV
+  MAL-* record — two-source confirmation. This validates the
+  brief's design: extras are the "fast lane" while OSV catches
+  up.
+
+- [x] **`pwned-deps check ./pyproject.toml ./requirements.lock`
+  (dogfood) returns exit 0.**
+
+  ```
+  warning: skipping pyproject.toml: not a recognised lockfile shape
+  pwned-deps 0.1.0 — checking requirements.lock (PyPI)
+
+  10 packages scanned · 0 compromised · 0 high/critical · 1 low/medium
+  exit=0
+  ```
+
+  The 1 low/medium informational finding is `pytest@8.3.3
+  GHSA-6w46-j5rx-g56g` — dev tool only, not bundled in the wheel.
+
+- [x] **SARIF output validates against schema.**
+
+  ```
+  $ python -c "import json, jsonschema; \
+      sarif=json.load(open('/tmp/demo.sarif')); \
+      schema=json.load(open('tests/fixtures/sarif/sarif-2.1.0-schema.json')); \
+      jsonschema.validate(sarif, schema); print('PASS')"
+  PASS
+  rules: 1  results: 1
+  ```
+
+- [x] **README has a working install + usage section that matches
+  the published CLI.** `--format`, `--offline`, `--ci`,
+  `--no-color`, `--cache-ttl`, `--feed-file`, `--cache-path`, the
+  `update` subcommand, and the `version` subcommand are all
+  surfaced in `pwned-deps check --help` exactly as documented.
+
+### Items that need user action before V1.0.0 tag
+
+These cannot be done locally per the user's binding constraint
+(no push, no auth, no token generation). Each is one-shot setup.
+
+- [ ] **`pipx install pwned-deps` works on macOS, Ubuntu, Windows.**
+  Requires PyPI publish — see below. Cross-platform verification
+  is a maintainer step (CI matrix in Step 10 already covers
+  Python 3.10 / 3.11 / 3.12 on Ubuntu; macOS + Windows
+  reproduction is the maintainer's call).
+
+- [ ] **CI is green on a fresh PR.** `.github/workflows/ci.yml` is
+  committed locally; it activates the moment the repo is pushed.
+
+- [ ] **Account hygiene checklist.**
+  - [ ] Hardware-key 2FA on GitHub for the `YOUR_GH_USERNAME`
+        account.
+  - [ ] PyPI 2FA + Trusted Publisher entry registered for this
+        repo so `release.yml`'s OIDC publish works.
+  - [ ] No long-lived `PYPI_API_TOKEN` ever stored as a repo
+        secret.
+
+- [ ] **`extras.json` is current to within 7 days of the most
+  recent public supply-chain campaign.** Today's bundled feed is
+  current as of 2026-05-03 (Mini Shai-Hulud, April 29 2026).
+  CI's daily cron already runs `verify-safety + lint + test +
+  dogfood`; an "auto-PR if upstream extras is newer than
+  bundled" step is a maintainer follow-up if/when there's a
+  separate hosted upstream feed.
+
+- [ ] **Replace the `YOUR_GH_USERNAME` placeholder.** A single
+  `git ls-files | xargs sed -i '' 's/YOUR_GH_USERNAME/<your-username>/g'`
+  before publish.
+
+- [ ] **Maintainer has run `pwned-deps check` against at least
+  one real customer/employer project, found nothing, and has
+  the receipt.** That is, by definition, the maintainer's
+  responsibility.
+
+- [ ] **SARIF uploads cleanly to a test repo's Code Scanning.**
+  Manual maintainer step (we hold the OASIS-validated SARIF as
+  evidence locally).
+
+- [ ] **Publish to PyPI; tag `v0.1.0`; create the first GitHub
+  Release.** `release.yml` does the publishing once a `v*` tag
+  exists; pre-publish gates run dogfood as a hard block on
+  exit 1.
+
+### V1 status
+
+**Local build is feature-complete.** All 11 brief-§7 steps have
+green gates. The repo is committed (16 commits on `main`), clean,
+ready for the maintainer's adoption cycle. Nothing has been
+pushed; no tokens have been generated; no third-party services
+have been authenticated.
+

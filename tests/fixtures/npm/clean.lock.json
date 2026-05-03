@@ -1,0 +1,21 @@
+{
+  "name": "clean-demo",
+  "version": "1.0.0",
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "clean-demo",
+      "version": "1.0.0",
+      "license": "MIT",
+      "dependencies": {
+        "definitely-not-a-real-package-pwned-deps-clean": "^9.9.9"
+      }
+    },
+    "node_modules/definitely-not-a-real-package-pwned-deps-clean": {
+      "version": "9.9.9",
+      "resolved": "https://registry.npmjs.org/definitely-not-a-real-package-pwned-deps-clean/-/definitely-not-a-real-package-pwned-deps-clean-9.9.9.tgz",
+      "integrity": "sha512-fakeFakeFake=="
+    }
+  }
+}

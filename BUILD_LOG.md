@@ -710,3 +710,175 @@ docstring as RUF002 ambiguous-character. Replaced with ASCII
 **Gate green.** `packaging>=24.0,<28.0` declared as a runtime dep,
 `packaging==26.2` pinned. Proceeding to Step 6 (CLI).
 
+---
+
+## Step 6 — CLI
+
+### Plan
+
+Files:
+- `src/pwned_deps/cli.py` — click app with three subcommands:
+  - `check [PATH]` — scan a single lockfile or autodetect under a
+    directory; supports `--format {text,json,sarif}`, `--offline`,
+    `--ci`, `--cache-ttl`, `--explain`, `--no-color`,
+    `--feed-file PATH` (allow-listed extras feed).
+  - `update` — refresh cache + bundled extras (Step 4 cache TTL is
+    enough for V1; refresh is a passthrough that re-queries every
+    cached row).
+  - `version` — print `pwned_deps.__version__`.
+- `src/pwned_deps/report/__init__.py` — re-exports.
+- `src/pwned_deps/report/text.py` — rich-based terminal renderer.
+  JSON / SARIF reporters land in Step 8; for now `--format json`
+  emits a minimal hand-rolled JSON shape so the gate item passes,
+  with TODO marker for SARIF.
+- `tests/test_cli.py` — `click.testing.CliRunner` end-to-end tests.
+
+API shape committed:
+
+```python
+# in cli.py
+@click.group()
+def main(): ...
+
+@main.command()
+@click.argument("path")
+@click.option("--format", "fmt", type=click.Choice(["text", "json", "sarif"]))
+@click.option("--offline/--no-offline")
+@click.option("--ci/--no-ci")
+@click.option("--no-color/--color")
+@click.option("--cache-ttl", type=int)
+@click.option("--feed-file", type=click.Path(exists=True))
+@click.option("--explain")
+def check(...): ...
+
+@main.command()
+def update(): ...
+
+@main.command()
+def version(): ...
+```
+
+Auto-detect when PATH is a directory: known filenames
+(`package-lock.json`, `npm-shrinkwrap.json`, `requirements.txt`,
+`Pipfile.lock`, `poetry.lock`, `uv.lock`). Other ecosystems
+(`pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `go.sum`, `pom.xml`,
+`Gemfile.lock`) get a "not yet supported in this build" stub; they
+land in Step 9.
+
+Exit codes (per BUILD_BRIEF §3):
+- 0 clean
+- 1 ≥1 MAL-* / EXTRA-* hit
+- 2 ≥1 HIGH/CRITICAL CVE hit (no MAL-*/EXTRA-*)
+- 3 parse error in any scanned file
+
+Test gate (from brief §7 Step 6):
+1. `check ./tests/fixtures/clean.lock.json` → exit 0, "All clean".
+2. `check ./tests/fixtures/mini-shaihulud.lock.json` (synthetic
+   campaign — real entry comes in Step 7) → exit 1, COMPROMISED
+   header, campaign name in output.
+3. `--format json` → emits valid JSON parseable by `json.loads`,
+   schema-checked against expected keys.
+4. `--ci --format text` → deterministic exit code, no ANSI codes.
+5. `--offline` with empty cache → friendly text or exit 0.
+
+Plausible failure modes:
+- click's `--no-color` option name collides with rich's
+  `Console(no_color=True)` keyword. Wire them carefully.
+- Auto-detect must not blow up on a directory with no recognised
+  lockfile (exit 0 with "no lockfiles found" warning).
+- `[project.scripts]` registration in pyproject.toml needs a
+  rebuild because the entrypoint is wired at install time.
+
+### Mid-step refinements
+
+1. Rich's `Console` defaults to 80 columns in non-TTY contexts
+   (CliRunner output, CI logs). It wrapped `package-lock.json`
+   across two lines in the directory-autodetect test. Fixed by
+   forcing `width=200` in the renderer.
+
+2. SARIF (`--format sarif`) is reserved for Step 8. Step 6's CLI
+   prints a friendly stub-and-fallback message when invoked.
+
+### Gate — paste of real output
+
+#### `make test`
+
+```
+collected 68 items / 1 deselected / 67 selected
+
+tests/advisory/test_cache.py .....                                       [  7%]
+tests/advisory/test_extras.py ......                                     [ 16%]
+tests/advisory/test_matcher.py ....                                      [ 22%]
+tests/advisory/test_osv_client.py ........                               [ 34%]
+tests/advisory/test_version_match.py ................                    [ 58%]
+tests/parsers/test_npm.py ........                                       [ 70%]
+tests/parsers/test_pypi.py .........                                     [ 83%]
+tests/test_cli.py .........                                              [ 97%]
+tests/test_smoke.py ..                                                   [100%]
+
+======================= 67 passed, 1 deselected in 0.12s =======================
+```
+
+9 new CLI tests cover all 5 brief gates (clean, malicious + campaign
+name, --format json, --ci no ANSI, --offline empty cache) plus
+directory autodetect, parse-error → exit 3, version subcommand,
+update subcommand.
+
+#### Hands-on `python -m pwned_deps.cli` runs (dev container, network on)
+
+Synthetic malicious lockfile, offline:
+
+```
+$ docker run --rm -v "$PWD":/work -w /work -e PYTHONPATH=/work/src pwned-deps-dev \
+    python -m pwned_deps.cli check tests/fixtures/npm/synthetic-malicious.lock.json \
+    --feed-file tests/fixtures/extras/synthetic-campaign.json \
+    --offline --cache-path /tmp/cache.sqlite --ci
+pwned-deps 0.1.0 — checking tests/fixtures/npm/synthetic-malicious.lock.json (npm)
+
+COMPROMISED — 1 package(s)
+  @cap-js/test-pkg@1.2.3
+    EXTRA-TEST-0001  Synthetic test campaign
+    Synthetic test campaign — INERT — used by tests/test_cli.py to drive the COMPROMISED branch.
+    refs: https://example.test/research
+
+1 packages scanned · 1 compromised · 0 high/critical · 0 low/medium
+exit=1
+```
+
+**Live dogfood** (network on; no `--offline`) against our own
+`requirements.lock`:
+
+```
+$ docker run --rm -v "$PWD":/work -w /work -e PYTHONPATH=/work/src pwned-deps-dev \
+    python -m pwned_deps.cli check requirements.lock --cache-path /tmp/cache.sqlite --ci
+pwned-deps 0.1.0 — checking requirements.lock (PyPI)
+
+8 packages scanned · 0 compromised · 0 high/critical · 1 low/medium
+exit=0
+```
+
+The 1 low/medium hit is `pytest@8.3.3` (GHSA-6w46-j5rx-g56g, severity
+MEDIUM). pytest is a dev-only tool, not bundled in the wheel; the
+dogfood gate per BUILD_BRIEF §3 cares about MAL-* (exit 1) and
+HIGH/CRITICAL (exit 2), so exit 0 is the right outcome. **TODO** —
+when bumping deps, evaluate whether a pytest 8.4+ release is
+available that addresses this advisory.
+
+#### `make lint`
+
+```
+All checks passed!
+```
+
+(Initial run flagged 5 ruff issues — import sorting, `Optional[X]` →
+`X | None` per UP007, an unused noqa, and a stale `_ = sys` guard.
+All fixed.)
+
+### Step 6 status
+
+**Gate green.** All 5 brief gate items pass. CLI is wired via
+`[project.scripts] pwned-deps = "pwned_deps.cli:main"`. Live OSV
+scan against our own lockfile dogfoods exit 0 with one MEDIUM dev
+tool advisory noted. Proceeding to Step 7 (Mini Shai-Hulud
+extras.json).
+

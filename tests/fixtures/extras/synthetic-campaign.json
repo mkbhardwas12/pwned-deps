@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "updated_at": "2026-05-03T00:00:00Z",
+  "_comment": "INERT synthetic campaign for CLI tests. Does not represent a real campaign — names + versions are intentionally fake. Real Mini Shai-Hulud entry lands in Step 7.",
+  "campaigns": [
+    {
+      "id": "EXTRA-TEST-0001",
+      "name": "Synthetic test campaign",
+      "summary": "INERT — used by tests/test_cli.py to drive the COMPROMISED branch.",
+      "references": [
+        "https://example.test/research"
+      ],
+      "ecosystem": "npm",
+      "packages": [
+        {
+          "name": "@cap-js/test-pkg",
+          "versions": ["1.2.3"]
+        }
+      ],
+      "exposure_window": [
+        "2026-04-29T13:00:00Z",
+        "2026-04-29T17:00:00Z"
+      ],
+      "actions": [
+        "Rotate any credentials reachable from CI."
+      ]
+    }
+  ]
+}

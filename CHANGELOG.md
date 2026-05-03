@@ -51,3 +51,14 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   `is_malicious` + `campaign_name`. Bundled `extras_data/extras.json`
   is a placeholder pending Step 7 Mini Shai-Hulud research. 26 new
   tests. `packaging==26.2` pinned as a runtime dep.
+- Step 6 — CLI. `cli.py` exposes `check`, `update`, and `version`
+  subcommands via click. `check` accepts a file or directory (with
+  filename-based autodetection for npm/PyPI lockfiles). Output
+  formats: `text` (rich-rendered), `json` (preliminary; full schema
+  in Step 8), `sarif` (stub for Step 8). Flags: `--offline`, `--ci`,
+  `--no-color`, `--cache-ttl`, `--feed-file`, `--cache-path`,
+  `--explain`. Exit codes follow BUILD_BRIEF §3 (0 / 1 / 2 / 3).
+  `report/text.py` rich renderer; `report/json_out.py` minimal
+  reporter. `[project.scripts] pwned-deps = "pwned_deps.cli:main"`
+  wired. 9 new CliRunner tests. `click==8.1.7` and `rich==13.9.4`
+  pinned.

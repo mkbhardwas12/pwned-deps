@@ -1,0 +1,23 @@
+# INERT hand-crafted uv lockfile.
+version = 1
+requires-python = ">=3.10"
+
+[[package]]
+name = "demo-app"
+version = "0.1.0"
+source = { virtual = "." }
+
+[[package]]
+name = "httpx"
+version = "0.27.2"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "click"
+version = "8.1.7"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "workspace-only-pkg"
+source = { editable = "./packages/local" }
+# no version on workspace-only entries → must be skipped

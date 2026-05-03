@@ -1,0 +1,26 @@
+# A realistic pip-compile-style file with a mix of pin styles. INERT.
+# Comment line.
+
+# Pinned (counts toward matching)
+requests==2.32.3
+Django==5.0.7
+PyYAML==6.0.2
+flask[async]==3.0.3
+
+# Loose (reported with version_unspecified=True)
+numpy>=1.26
+sqlalchemy~=2.0
+typing-extensions<5
+
+# Editable / VCS / local — all should be ignored gracefully
+-e .
+-e ./mylib
+git+https://github.com/example/foo.git#egg=foo
+./local-pkg
+
+# Recursive include — ignored by us; the resolver handles it
+-r dev-requirements.txt
+
+# Hash-mode line continuations should not break us
+cryptography==43.0.1 \
+    --hash=sha256:fake-hash-fake-hash-fake-hash-fake

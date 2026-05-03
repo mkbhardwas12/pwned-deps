@@ -6,6 +6,7 @@ execute, install, or fetch anything from a parsed lockfile (BUILD_BRIEF
 §2 rule 1).
 """
 
+from pwned_deps.parsers import npm, pypi
 from pwned_deps.parsers.base import (
     Ecosystem,
     Lockfile,
@@ -18,4 +19,6 @@ __all__ = [
     "Lockfile",
     "Package",
     "ParseError",
+    "npm",
+    "pypi",
 ]

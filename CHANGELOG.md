@@ -25,3 +25,10 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   (recursive `dependencies`), v2 (prefer `packages`, skip workspace
   links), v3 (`packages` only); 8 unit tests covering every shape and
   error path.
+- Step 3 — Python lockfile parsers. `parsers/pypi.py` auto-dispatches by
+  filename to handlers for `requirements*.txt` (pinned vs loose vs
+  editable/VCS/local), `Pipfile.lock` (default + develop merge),
+  `poetry.lock`, and `uv.lock` (workspace-root skip). Loose pins are
+  emitted with `version_unspecified=True`. Names canonicalised to
+  PEP 503 form. 9 unit tests on inert hand-crafted fixtures. `tomli`
+  added as a dev dep for Python 3.10 fallback.

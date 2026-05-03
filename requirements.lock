@@ -16,3 +16,6 @@
 pytest==8.3.3
 pytest-httpx==0.32.0
 ruff==0.7.4
+# Step 3 — TOML reading on Python 3.10. On 3.11+ the parser uses stdlib
+# tomllib; tomli is the fallback for 3.10 distributions.
+tomli==2.0.2

@@ -247,3 +247,121 @@ rootfs reason as pytest.)
 **Gate green.** All six items from the plan are evidenced above. Step 1
 is complete. Proceeding to Step 2 (npm parser).
 
+---
+
+## Step 2 — npm lockfile parser
+
+### Plan
+
+Files:
+- `src/pwned_deps/parsers/__init__.py` — re-exports `Lockfile`,
+  `Package`, `Ecosystem`, `ParseError`.
+- `src/pwned_deps/parsers/base.py` — dataclasses + the OSV-vocabulary
+  `Ecosystem` StrEnum (`npm`, `PyPI`, `crates.io`, `Go`, `Maven`,
+  `RubyGems`).
+- `src/pwned_deps/parsers/npm.py` — `parse(path) -> Lockfile`. Handles
+  `package-lock.json` v1 (`dependencies` only, recursive nested map),
+  v2 (both `packages` and `dependencies`; prefer `packages`), v3
+  (`packages` only). `npm-shrinkwrap.json` shares v3 schema. Defers
+  pnpm and yarn to Step 9.
+- `tests/fixtures/npm/` — hand-crafted INERT lockfile JSON fixtures.
+  No `node_modules/`, no install ever run on the host.
+- `tests/parsers/test_npm.py` — ≥6 unit tests per brief §7 Step 2.
+
+API shape committed:
+
+```python
+class Ecosystem(StrEnum):
+    NPM = "npm"
+    PYPI = "PyPI"
+    CRATES = "crates.io"
+    GO = "Go"
+    MAVEN = "Maven"
+    RUBYGEMS = "RubyGems"
+
+@dataclass(frozen=True)
+class Package:
+    name: str
+    version: str
+    ecosystem: Ecosystem
+    lockfile_path: str
+    parents: tuple[str, ...] = ()    # transitive chain (caller -> ... -> us)
+    version_unspecified: bool = False  # True for unpinned PyPI entries
+
+@dataclass(frozen=True)
+class Lockfile:
+    path: Path
+    ecosystem: Ecosystem
+    packages: tuple[Package, ...]
+
+class ParseError(Exception):
+    """Friendly message on corrupted/unsupported lockfiles."""
+
+def parse(path: str | Path) -> Lockfile: ...
+```
+
+Test gate (≥6 unit tests):
+1. v1 lockfile → list of (name, version) extracted from
+   `dependencies` (recursively).
+2. v2 lockfile → packages from `packages` map preferred over
+   `dependencies` (no double-count).
+3. v3 lockfile → packages from `packages` map.
+4. Missing file → `ParseError` with friendly message.
+5. Empty `packages` → empty `Lockfile`, no crash.
+6. Scoped packages (`@cap-js/cds`) parsed with the leading `@`.
+
+Plausible failure modes:
+- v2 lockfiles often duplicate entries between `packages` and
+  `dependencies`. The brief says "prefer `packages`". A naive merge
+  would inflate the count.
+- v2/v3 `packages` map keys: the root project is keyed `""`, and other
+  entries are `"node_modules/<pkg>"` or
+  `"node_modules/<scope>/<pkg>"`. Need to extract `<pkg>` and `<scope>`
+  from the key, not the metadata.
+- Some entries in `packages` are workspace links (`"link": true`) or
+  the root project (key `""`); both should be skipped.
+
+### Gate — paste of real output
+
+#### `make verify-safety`
+
+```
+[verify-safety] scanning src, tests for forbidden symbols...
+[verify-safety] OK — no forbidden symbols in src, tests
+```
+
+#### `make test` (locked-down container)
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-8.3.3, pluggy-1.6.0
+cachedir: /tmp/.pytest_cache
+rootdir: /work
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.13.0, httpx-0.32.0
+collected 10 items
+
+tests/parsers/test_npm.py ........                                       [ 80%]
+tests/test_smoke.py ..                                                   [100%]
+
+============================== 10 passed in 0.01s ==============================
+exit=0
+```
+
+8 parser tests covering: v1 nested tree (with parent chain),
+v2 prefer-`packages`-no-double-count, v2 workspace-link skip, v3
+packages-only, scoped `@cap-js/cds`, empty `packages`, missing file
+(friendly ParseError), corrupted JSON (friendly ParseError),
+unsupported `lockfileVersion`. Brief required ≥6.
+
+#### `make lint`
+
+```
+All checks passed!
+```
+
+### Step 2 status
+
+**Gate green.** Proceeding to Step 3 (pip / Python lockfile parsers).
+

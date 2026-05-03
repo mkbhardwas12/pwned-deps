@@ -1,0 +1,58 @@
+{
+  "name": "demo-v2",
+  "version": "1.0.0",
+  "lockfileVersion": 2,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "demo-v2",
+      "version": "1.0.0",
+      "license": "MIT",
+      "dependencies": {
+        "lodash": "^4.17.21",
+        "@cap-js/cds": "1.2.3"
+      }
+    },
+    "node_modules/lodash": {
+      "version": "4.17.21",
+      "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
+      "integrity": "sha512-fakeFakeFake=="
+    },
+    "node_modules/@cap-js/cds": {
+      "version": "1.2.3",
+      "resolved": "https://registry.npmjs.org/@cap-js/cds/-/cds-1.2.3.tgz",
+      "integrity": "sha512-fakeFakeFake=="
+    },
+    "node_modules/express": {
+      "version": "4.18.2",
+      "resolved": "https://registry.npmjs.org/express/-/express-4.18.2.tgz",
+      "integrity": "sha512-fakeFakeFake=="
+    },
+    "node_modules/express/node_modules/qs": {
+      "version": "6.11.0",
+      "resolved": "https://registry.npmjs.org/qs/-/qs-6.11.0.tgz",
+      "integrity": "sha512-fakeFakeFake=="
+    },
+    "node_modules/workspace-link-pkg": {
+      "resolved": "../some-local-pkg",
+      "link": true
+    }
+  },
+  "dependencies": {
+    "lodash": {
+      "version": "4.17.21",
+      "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
+      "integrity": "sha512-fakeFakeFake=="
+    },
+    "@cap-js/cds": {
+      "version": "1.2.3",
+      "resolved": "https://registry.npmjs.org/@cap-js/cds/-/cds-1.2.3.tgz",
+      "integrity": "sha512-fakeFakeFake=="
+    },
+    "express": {
+      "version": "4.18.2",
+      "resolved": "https://registry.npmjs.org/express/-/express-4.18.2.tgz",
+      "integrity": "sha512-fakeFakeFake=="
+    }
+  }
+}

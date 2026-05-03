@@ -1,0 +1,28 @@
+{
+  "name": "demo-v3",
+  "version": "1.0.0",
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "demo-v3",
+      "version": "1.0.0",
+      "license": "MIT",
+      "dependencies": {
+        "react": "18.2.0",
+        "@types/node": "20.0.0"
+      }
+    },
+    "node_modules/react": {
+      "version": "18.2.0",
+      "resolved": "https://registry.npmjs.org/react/-/react-18.2.0.tgz",
+      "integrity": "sha512-fakeFakeFake=="
+    },
+    "node_modules/@types/node": {
+      "version": "20.0.0",
+      "resolved": "https://registry.npmjs.org/@types/node/-/node-20.0.0.tgz",
+      "integrity": "sha512-fakeFakeFake==",
+      "dev": true
+    }
+  }
+}

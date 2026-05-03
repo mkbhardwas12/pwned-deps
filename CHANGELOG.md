@@ -19,3 +19,9 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   test, verify-safety, verify-safety-self-test, lint, pin-base, clean),
   `requirements.lock` (pytest + pytest-httpx + ruff), `LICENSE`
   (Apache-2.0).
+- Step 2 — npm lockfile parser. `parsers/base.py` shared dataclasses
+  (`Package`, `Lockfile`, `Ecosystem` StrEnum matching OSV vocabulary,
+  `ParseError`); `parsers/npm.py` handling `package-lock.json` v1
+  (recursive `dependencies`), v2 (prefer `packages`, skip workspace
+  links), v3 (`packages` only); 8 unit tests covering every shape and
+  error path.

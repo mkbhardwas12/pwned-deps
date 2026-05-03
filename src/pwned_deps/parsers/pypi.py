@@ -50,7 +50,9 @@ def parse(path: str | Path) -> Lockfile:
         return _parse_poetry_lock(path)
     if name == "uv.lock":
         return _parse_uv_lock(path)
-    if name.startswith("requirements") and name.endswith(".txt"):
+    if name.startswith("requirements") and (
+        name.endswith(".txt") or name.endswith(".lock") or name.endswith(".in")
+    ):
         return _parse_requirements_txt(path)
     if name.endswith(".txt"):
         return _parse_requirements_txt(path)

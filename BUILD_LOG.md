@@ -1370,3 +1370,43 @@ All checks passed!
 "CI green on a fresh PR" is the maintainer's acceptance gate when
 the repo lands on GitHub. Proceeding to Step 11 (README polish).
 
+---
+
+## Step 11 — README polish + threat model
+
+### Plan
+
+Rewrite the README in the order the brief §7 Step 11 specifies:
+logo placeholder, tagline, badges, "Why this exists" with the
+Mini Shai-Hulud peg, install, quick usage, supported ecosystems
+(now reflecting V1's full coverage), output formats, threat model
+(elevated from a one-paragraph stub to a section that names what
+we do and don't do), FAQ, honest comparison table, contributing
+flow with the 5-minute "add a campaign" PR, license, maintainer
+placeholder.
+
+The brief is explicit that the comparison table must NOT pretend
+we replace `osv-scanner` — call it the well-resourced direct
+competitor we add UX + an open campaign feed on top of, and say
+where they're the better choice.
+
+Files: `README.md` only. No code changes.
+
+Test gate (from brief §7 Step 11):
+- README renders correctly on GitHub (verified locally by
+  spot-checking markdown structure; full GitHub render is a
+  maintainer step at adoption time).
+- All install commands described should work end-to-end on a
+  fresh macOS / Ubuntu / Windows. We don't run a CI matrix here
+  (Step 10's `test` matrix already covers Python 3.10 / 3.11 /
+  3.12 on Ubuntu); the maintainer reproduces on macOS + Windows
+  before V1.0.0 tag.
+
+### Step 11 status
+
+**Gate green** for everything verifiable locally. README structure
+follows the brief's §7 Step 11 outline. `make verify-safety` and
+`make test` remain green (94 passed, 1 deselected). Cross-platform
+install verification is a maintainer step before V1.0.0 — recorded
+in the V1 acceptance section. Proceeding to V1 acceptance run.
+

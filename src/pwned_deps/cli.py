@@ -31,6 +31,7 @@ from pwned_deps.parsers import npm as npm_parser
 from pwned_deps.parsers import pypi as pypi_parser
 from pwned_deps.parsers.base import Lockfile, ParseError
 from pwned_deps.report.json_out import render_json
+from pwned_deps.report.sarif import render_sarif
 from pwned_deps.report.text import ScanReport, render_text
 
 # Map known lockfile filenames to their parser entry-point.
@@ -164,12 +165,8 @@ def check(
         rendered, exit_code = render_json(reports, version=pwned_deps.__version__)
         click.echo(rendered)
     elif fmt == "sarif":
-        click.echo(
-            "SARIF output is implemented in Step 8 of the build plan; "
-            "use --format json for now.",
-            err=True,
-        )
-        exit_code = 0
+        rendered, exit_code = render_sarif(reports, version=pwned_deps.__version__)
+        click.echo(rendered)
     else:
         exit_code = render_text(
             reports,

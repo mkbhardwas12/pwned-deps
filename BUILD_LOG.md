@@ -69,7 +69,7 @@ pin via `make pin-base`; non-root `appuser` UID 1000; copies
 (targets per plan; locked-down flags on test/lint), `requirements.lock`
 (pytest + pytest-httpx + ruff, pinned with hashes via `pip-compile`
 inside container during build), `.gitignore`, `.dockerignore`, `LICENSE`
-(Apache-2.0 full text), `README.md` (skeleton with `YOUR_GH_USERNAME`
+(Apache-2.0 full text), `README.md` (skeleton with `mkbhardwas12`
 placeholders), `CHANGELOG.md` (Keep-a-Changelog format).
 
 API shape committed: `pwned_deps.__version__: str` is the only public
@@ -1509,7 +1509,7 @@ These cannot be done locally per the user's binding constraint
   committed locally; it activates the moment the repo is pushed.
 
 - [ ] **Account hygiene checklist.**
-  - [ ] Hardware-key 2FA on GitHub for the `YOUR_GH_USERNAME`
+  - [ ] Hardware-key 2FA on GitHub for the `mkbhardwas12`
         account.
   - [ ] PyPI 2FA + Trusted Publisher entry registered for this
         repo so `release.yml`'s OIDC publish works.
@@ -1524,8 +1524,8 @@ These cannot be done locally per the user's binding constraint
   bundled" step is a maintainer follow-up if/when there's a
   separate hosted upstream feed.
 
-- [ ] **Replace the `YOUR_GH_USERNAME` placeholder.** A single
-  `git ls-files | xargs sed -i '' 's/YOUR_GH_USERNAME/<your-username>/g'`
+- [ ] **Replace the `mkbhardwas12` placeholder.** A single
+  `git ls-files | xargs sed -i '' 's/mkbhardwas12/<your-username>/g'`
   before publish.
 
 - [ ] **Maintainer has run `pwned-deps check` against at least

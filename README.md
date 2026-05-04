@@ -4,7 +4,7 @@
 
 <!-- TODO(logo): place a 256x256 PNG at docs/logo.png and reference it here. -->
 
-[![CI](https://github.com/YOUR_GH_USERNAME/pwned-deps/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_GH_USERNAME/pwned-deps/actions/workflows/ci.yml)
+[![CI](https://github.com/mkbhardwas12/pwned-deps/actions/workflows/ci.yml/badge.svg)](https://github.com/mkbhardwas12/pwned-deps/actions/workflows/ci.yml)
 [![PyPI version](https://img.shields.io/pypi/v/pwned-deps.svg)](https://pypi.org/project/pwned-deps/)
 [![Python versions](https://img.shields.io/pypi/pyversions/pwned-deps.svg)](https://pypi.org/project/pwned-deps/)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -229,6 +229,6 @@ Apache License 2.0 — see [LICENSE](./LICENSE).
 
 ## Maintainer
 
-`YOUR_GH_USERNAME` (placeholder — sed-replace before publish).
+`mkbhardwas12`
 
-Issues: <https://github.com/YOUR_GH_USERNAME/pwned-deps/issues>
+Issues: <https://github.com/mkbhardwas12/pwned-deps/issues>

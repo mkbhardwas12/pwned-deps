@@ -213,7 +213,7 @@ The agent's first task in step 7 is to fill in the actual affected package names
 
 ### Step 1 — Project skeleton + Docker dev env
 
-Files: `pyproject.toml`, `src/pwned_deps/__init__.py`, `tests/__init__.py`, `tests/test_smoke.py`, `Dockerfile.dev`, `Makefile`, `requirements.lock`, `.gitignore`, `.dockerignore`, `LICENSE` (Apache-2.0), `README.md` (with `YOUR_GH_USERNAME` placeholder), `CHANGELOG.md`. Reuse the exact pattern from the GGUF-scanner project's Step 1 (Dockerfile non-root `appuser`, locked-down Makefile flags, `verify-safety` grep target).
+Files: `pyproject.toml`, `src/pwned_deps/__init__.py`, `tests/__init__.py`, `tests/test_smoke.py`, `Dockerfile.dev`, `Makefile`, `requirements.lock`, `.gitignore`, `.dockerignore`, `LICENSE` (Apache-2.0), `README.md` (with `mkbhardwas12` placeholder), `CHANGELOG.md`. Reuse the exact pattern from the GGUF-scanner project's Step 1 (Dockerfile non-root `appuser`, locked-down Makefile flags, `verify-safety` grep target).
 
 The forbidden-symbol regex for `verify-safety` for this project:
 
@@ -463,7 +463,7 @@ Do not buy ads. Do not buy stars. Do not run social bots. The launch hooks itsel
 
 ## 11. Open decisions for the user (must be answered before V1 release)
 
-1. **GitHub username / org.** Currently `YOUR_GH_USERNAME` placeholder. Single sed-replace before publish.
+1. **GitHub username / org.** Currently `mkbhardwas12` placeholder. Single sed-replace before publish.
 2. **Project name.** `pwned-deps` is the proposed name. Alternatives: `is-pwned`, `pwndep`, `lockcheck`, `pwn-check`. Pick before first PyPI publish — renaming on PyPI is painful.
 3. **License.** Apache 2.0 is suggested (patent grant, common for security tooling). MIT is the alternative.
 4. **PyPI account.** Set up before V1 release. Use OIDC trusted publishing from GitHub Actions.

@@ -41,7 +41,7 @@ DEFAULT_BASE_URL = "https://api.osv.dev"
 DEFAULT_BATCH_SIZE = 1000
 DEFAULT_TIMEOUT_SECONDS = 30.0
 DEFAULT_USER_AGENT = (
-    "pwned-deps/0.1.0 (+https://github.com/YOUR_GH_USERNAME/pwned-deps)"
+    "pwned-deps/0.1.0 (+https://github.com/mkbhardwas12/pwned-deps)"
 )
 _RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 _MAX_ATTEMPTS = 3

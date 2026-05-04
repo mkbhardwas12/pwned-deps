@@ -88,6 +88,58 @@ def test_check_pinning_known_bad_version_reports_campaign(
     assert finding["severity"] == "CRITICAL"
 
 
+def test_bundled_extras_loaded_with_april30_followon_campaign() -> None:
+    """The shipped extras.json also carries the April-30 follow-on
+    campaign (EXTRA-2026-0002) covering intercom-client@7.0.5 and
+    lightning@{2.6.2,2.6.3}, sourced from Wiz."""
+
+    from importlib import resources
+
+    bundle = resources.files("pwned_deps.extras_data").joinpath("extras.json")
+    data = json.loads(bundle.read_text(encoding="utf-8"))
+    campaigns = {c["id"]: c for c in data.get("campaigns", [])}
+    assert "EXTRA-2026-0002" in campaigns
+
+    campaign = campaigns["EXTRA-2026-0002"]
+    pairs = {(p["name"], v) for p in campaign["packages"] for v in p["versions"]}
+    assert ("intercom-client", "7.0.5") in pairs
+    assert ("lightning", "2.6.2") in pairs
+    assert ("lightning", "2.6.3") in pairs
+    assert any("wiz.io" in ref for ref in campaign["references"])
+
+
+def test_check_pinning_april30_version_reports_followon_campaign(
+    tmp_path: Path, httpx_mock: HTTPXMock
+) -> None:
+    """`pwned-deps check tests/fixtures/npm/mini-shaihulud-followon.lock.json`
+    must surface EXTRA-2026-0002."""
+
+    httpx_mock.add_response(
+        url="https://api.osv.dev/v1/querybatch",
+        method="POST",
+        json={"results": [{}]},
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "check",
+            str(FIXTURES / "npm" / "mini-shaihulud-followon.lock.json"),
+            "--format",
+            "json",
+            "--cache-path",
+            str(_isolated_cache(tmp_path)),
+            "--ci",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    findings = [f for lf in payload["lockfiles"] for f in lf["findings"]]
+    assert any(f["id"] == "EXTRA-2026-0002" for f in findings)
+
+
 def test_check_text_output_shows_campaign_and_remediation(
     tmp_path: Path, httpx_mock: HTTPXMock
 ) -> None:

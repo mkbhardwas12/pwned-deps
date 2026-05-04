@@ -54,6 +54,38 @@
         "Audit your GitHub account for newly created public repos with the description 'A Mini Shai-Hulud has Appeared' (the attacker's signature string, per SecurityBridge).",
         "Pin exact npm versions going forward to prevent silent upgrades to malicious patch releases."
       ]
+    },
+    {
+      "id": "EXTRA-2026-0002",
+      "name": "Mini Shai-Hulud follow-on (intercom-client + lightning)",
+      "summary": "On April 30, 2026 — one day after the Mini Shai-Hulud SAP CAP incident — three additional npm package versions were trojanised by the same operator (shared C2 domain zero.masscan.cloud and fallback via GitHub commits keyed by 'beautifulcastle'). The intercom-client payload was an evolution of the original credential stealer with new Kubernetes + HashiCorp Vault targeting and regex extraction of AWS keys, GitHub/npm tokens, database connection strings, private keys, and API secrets.",
+      "references": [
+        "https://www.wiz.io/blog/mini-shai-hulud-supply-chain-sap-npm"
+      ],
+      "ecosystem": "npm",
+      "packages": [
+        {
+          "name": "intercom-client",
+          "versions": ["7.0.5"],
+          "source": "wiz.io"
+        },
+        {
+          "name": "lightning",
+          "versions": ["2.6.2", "2.6.3"],
+          "source": "wiz.io"
+        }
+      ],
+      "exposure_window": [
+        "2026-04-30T00:00:00Z",
+        "2026-04-30T23:59:59Z"
+      ],
+      "_exposure_window_note": "Wiz pins the date (April 30, 2026) but does not publish UTC start/end stamps for the publication or removal of these versions. We use a conservative whole-day window. TODO(precise-window): tighten if a primary source publishes the exact times.",
+      "_tarball_sha256_note": "TODO(tarball-sha256): Wiz did not publish SHA-256 digests for these three .tgz files at the time of this writing. Add them when a primary source publishes them.",
+      "actions": [
+        "Same remediation list as EXTRA-2026-0001 — same operator, same shared infrastructure, expanded payload.",
+        "In addition: rotate HashiCorp Vault tokens and audit Kubernetes ServiceAccount tokens reachable from any CI that pulled these versions (the April-30 payload added explicit Vault + Kubernetes targeting).",
+        "Search audit logs for outbound connections to zero.masscan.cloud and for git commits whose author or message contains 'beautifulcastle' (the operator's documented fallback channel)."
+      ]
     }
   ]
 }

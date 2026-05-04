@@ -1,0 +1,22 @@
+{
+  "name": "mini-shaihulud-followon-fixture",
+  "version": "1.0.0",
+  "lockfileVersion": 3,
+  "requires": true,
+  "_comment": "INERT fixture — pins one of the April-30 follow-on trojan versions (intercom-client@7.0.5 per Wiz) so the EXTRA-2026-0002 acceptance test can drive the COMPROMISED branch end-to-end. NEVER `npm install` this file.",
+  "packages": {
+    "": {
+      "name": "mini-shaihulud-followon-fixture",
+      "version": "1.0.0",
+      "license": "MIT",
+      "dependencies": {
+        "intercom-client": "7.0.5"
+      }
+    },
+    "node_modules/intercom-client": {
+      "version": "7.0.5",
+      "resolved": "https://registry.npmjs.org/intercom-client/-/intercom-client-7.0.5.tgz",
+      "integrity": "sha512-fakeFakeFake=="
+    }
+  }
+}

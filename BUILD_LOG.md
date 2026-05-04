@@ -1607,3 +1607,34 @@ Exit 0; no malicious deps. Full sweep is green:
 - `make test` → 94 passed, 1 deselected
 - `make lint` (ruff 0.15) → All checks passed!
 
+### EXTRA-2026-0002 — April-30 follow-on trojans
+
+Sourced from Wiz (the only named blog that documented the
+follow-on round):
+
+- `intercom-client@7.0.5`
+- `lightning@2.6.2`, `lightning@2.6.3`
+
+Same operator as the Mini Shai-Hulud SAP CAP incident (shared C2
+`zero.masscan.cloud`, fallback channel via GitHub commits with
+the keyword `beautifulcastle`). Payload evolved to target
+Kubernetes ServiceAccount tokens + HashiCorp Vault secrets in
+addition to the original AWS / GitHub / npm token theft.
+
+Wiz didn't publish:
+- SHA-256 digests of the three .tgz files →
+  `TODO(tarball-sha256)` marker recorded inline.
+- UTC start/end stamps for publication and removal →
+  conservative whole-day window
+  (2026-04-30T00:00:00Z → 2026-04-30T23:59:59Z) with
+  `TODO(precise-window)` marker inline.
+
+Added a fixture (`mini-shaihulud-followon.lock.json` pinning
+`intercom-client@7.0.5`) and two new tests:
+- schema check on the bundled extras file (asserts all three
+  affected `(name, version)` pairs and a wiz.io citation).
+- end-to-end CLI test (asserts exit 1 + finding id
+  `EXTRA-2026-0002`).
+
+Test count: 96 passed, 1 deselected.
+

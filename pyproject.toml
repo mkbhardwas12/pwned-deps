@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [
-    { name = "YOUR_GH_USERNAME", email = "YOUR_GH_USERNAME@users.noreply.github.com" },
+    { name = "mkbhardwas12", email = "mkbhardwas12@users.noreply.github.com" },
 ]
 keywords = [
     "supply-chain",
@@ -48,10 +48,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/YOUR_GH_USERNAME/pwned-deps"
-Repository = "https://github.com/YOUR_GH_USERNAME/pwned-deps"
-Issues = "https://github.com/YOUR_GH_USERNAME/pwned-deps/issues"
-Changelog = "https://github.com/YOUR_GH_USERNAME/pwned-deps/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/mkbhardwas12/pwned-deps"
+Repository = "https://github.com/mkbhardwas12/pwned-deps"
+Issues = "https://github.com/mkbhardwas12/pwned-deps/issues"
+Changelog = "https://github.com/mkbhardwas12/pwned-deps/blob/main/CHANGELOG.md"
 
 [project.scripts]
 pwned-deps = "pwned_deps.cli:main"

@@ -5,7 +5,7 @@ Schema mapping (BUILD_BRIEF §7 Step 8):
 * ``runs[0].tool.driver.name`` = ``"pwned-deps"``
 * ``runs[0].tool.driver.version`` = ``pwned_deps.__version__``
 * ``runs[0].tool.driver.informationUri`` =
-  ``"https://github.com/YOUR_GH_USERNAME/pwned-deps"``
+  ``"https://github.com/mkbhardwas12/pwned-deps"``
 * ``runs[0].tool.driver.rules[]`` — one entry per unique advisory
   ID seen in this run.
 * ``runs[0].results[].level`` —
@@ -30,7 +30,7 @@ from typing import Any
 from pwned_deps.advisory.types import Severity
 from pwned_deps.report.text import ScanReport
 
-INFORMATION_URI = "https://github.com/YOUR_GH_USERNAME/pwned-deps"
+INFORMATION_URI = "https://github.com/mkbhardwas12/pwned-deps"
 SARIF_SCHEMA_URI = (
     "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json"
 )

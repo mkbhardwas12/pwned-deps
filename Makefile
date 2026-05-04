@@ -12,6 +12,7 @@
 #   make verify-safety-self-test  Prove the regex catches a planted eval()
 #   make lint                 Ruff lint inside container (locked-down)
 #   make pin-base             Capture current python:3.12-slim digest into base-image.lock
+#   make pin-deps             Regenerate requirements.lock from requirements.in with hashes
 #   make clean                Remove the dev image
 #
 # Locked-down container flags applied to test/lint targets:
@@ -51,7 +52,7 @@ RUN_FLAGS_LOCKED := --rm --network none --read-only \
 # regenerating the lockfile and adding deps).
 RUN_FLAGS_DEV := --rm -it -v $(PWD):/work -w /work
 
-.PHONY: help build shell test verify-safety verify-safety-self-test lint pin-base clean
+.PHONY: help build shell test verify-safety verify-safety-self-test lint pin-base pin-deps clean
 
 help:
 	@echo "pwned-deps Makefile targets:"
@@ -99,6 +100,17 @@ pin-base:
 	@echo "Now update the FROM line in Dockerfile.dev to:"
 	@echo "  FROM $$(cat base-image.lock)"
 	@echo "and rerun 'make build'."
+
+pin-deps:
+	@echo "Regenerating requirements.lock from requirements.in (with hashes)..."
+	docker run --rm -v $(PWD):/work -w /work $(IMAGE) /bin/bash -c '\
+		export PATH=/home/appuser/.local/bin:$$PATH && \
+		pip install --quiet --user pip-tools==7.4.1 && \
+		pip-compile --generate-hashes --quiet \
+			--output-file=/tmp/requirements.lock requirements.in && \
+		cp /tmp/requirements.lock /work/requirements.lock'
+	@echo "Wrote $$(wc -l < requirements.lock) lines to requirements.lock"
+	@echo "Now: rerun 'make build' to verify the hashes install cleanly."
 
 clean:
 	-docker image rm $(IMAGE) 2>/dev/null || true

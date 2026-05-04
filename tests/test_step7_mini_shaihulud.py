@@ -168,3 +168,80 @@ def test_check_text_output_shows_campaign_and_remediation(
     assert "COMPROMISED" in result.output
     assert "Mini Shai-Hulud (SAP CAP)" in result.output
     assert "@cap-js/sqlite@2.2.2" in result.output
+
+
+def test_lightning_pypi_is_caught_via_per_package_ecosystem_override(
+    tmp_path: Path, httpx_mock: HTTPXMock
+) -> None:
+    """Regression: EXTRA-2026-0002 covers `lightning@2.6.2/2.6.3` on
+    PyPI (per Wiz). Before the per-package ecosystem override, this
+    entry was silently ignored on Python lockfiles because the campaign-
+    level ecosystem said `npm`. Confirm a Python requirements.txt
+    pinning lightning@2.6.2 now exits 1."""
+
+    httpx_mock.add_response(
+        url="https://api.osv.dev/v1/querybatch",
+        method="POST",
+        json={"results": [{}]},
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "check",
+            str(FIXTURES / "pypi" / "lightning-pinned.txt"),
+            "--format",
+            "json",
+            "--cache-path",
+            str(_isolated_cache(tmp_path)),
+            "--ci",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    findings = [f for lf in payload["lockfiles"] for f in lf["findings"]]
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding["id"] == "EXTRA-2026-0002"
+    assert finding["package"] == "lightning"
+    assert finding["version"] == "2.6.2"
+    assert finding["ecosystem"] == "PyPI"
+    # The campaign-level `iocs` field must be carried into the JSON
+    # output so consumers (Code Scanning, dashboards) can hunt for the
+    # non-lockfile indicators (rogue C2 domains, suspicious commits).
+    assert any("zero.masscan.cloud" in ioc for ioc in finding["iocs"])
+
+
+def test_text_output_surfaces_tarball_sha256_and_iocs(
+    tmp_path: Path, httpx_mock: HTTPXMock
+) -> None:
+    """For Mini Shai-Hulud (which carries tarball_sha256 + iocs),
+    the text report must surface both so users can act on them
+    without re-reading the source blogs."""
+
+    httpx_mock.add_response(
+        url="https://api.osv.dev/v1/querybatch",
+        method="POST",
+        json={"results": [{}]},
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "check",
+            str(FIXTURES / "npm" / "mini-shaihulud.lock.json"),
+            "--cache-path",
+            str(_isolated_cache(tmp_path)),
+            "--ci",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 1, result.output
+    # tarball_sha256 from extras.json for @cap-js/sqlite@2.2.2.
+    assert "a1da198bb4e883d077a0e13351bf2c3acdea10497152292e873d79d4f7420211" in result.output
+    # At least one campaign-level IoC line must be visible.
+    assert "additional indicators" in result.output.lower()
+    assert "A Mini Shai-Hulud has Appeared" in result.output

@@ -1,0 +1,125 @@
+# pwned-deps GitHub Action
+#
+# Composite action — `uses: mkbhardwas12/pwned-deps@v0.1.0`.
+#
+# Scans every recognised lockfile under the given path, emits SARIF,
+# and (if `upload-sarif: true`) uploads it to GitHub Code Scanning.
+#
+# Exit codes from the underlying CLI:
+#   0  clean
+#   1  at least one MAL-* / EXTRA-* hit (compromised package)
+#   2  at least one HIGH/CRITICAL CVE (no malicious hits)
+#   3  parse error
+#
+# `fail-on` controls which exit codes fail the step. Default: `compromised`
+# (exit 1 only). Set to `any` to also fail on HIGH/CRITICAL CVEs.
+
+name: pwned-deps
+description: Scan lockfiles for compromised package versions (MAL-* / EXTRA-*).
+author: mkbhardwas12
+branding:
+  icon: shield
+  color: red
+
+inputs:
+  path:
+    description: Path to scan (file or directory). Directories autodetect every supported lockfile.
+    required: false
+    default: "."
+  version:
+    description: pwned-deps version to install (PyPI). Defaults to the latest release.
+    required: false
+    default: ""
+  fail-on:
+    description: |
+      Which exit codes fail the step.
+      `compromised` (default) — fail on exit 1 only.
+      `any`                   — fail on exit 1 or 2.
+      `never`                 — never fail (report-only).
+    required: false
+    default: compromised
+  output-sarif:
+    description: Path to write the SARIF report. Empty = do not write SARIF.
+    required: false
+    default: pwned-deps.sarif
+  upload-sarif:
+    description: If `true`, upload the SARIF file to GitHub Code Scanning.
+    required: false
+    default: "true"
+  offline:
+    description: If `true`, skip the network and use the cached database only.
+    required: false
+    default: "false"
+
+outputs:
+  exit-code:
+    description: The CLI exit code (0/1/2/3).
+    value: ${{ steps.scan.outputs.exit-code }}
+  sarif-path:
+    description: Path to the SARIF file written, if any.
+    value: ${{ steps.scan.outputs.sarif-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install pwned-deps
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.version }}" ]; then
+          pip install --quiet "pwned-deps==${{ inputs.version }}"
+        else
+          pip install --quiet pwned-deps
+        fi
+        pwned-deps version
+
+    - name: Scan
+      id: scan
+      shell: bash
+      run: |
+        set +e
+        args=(check "${{ inputs.path }}" --ci)
+        if [ "${{ inputs.offline }}" = "true" ]; then
+          args+=(--offline)
+        fi
+
+        # Always produce a text run for the workflow log.
+        pwned-deps "${args[@]}"
+        rc=$?
+
+        # Optional SARIF run for Code Scanning upload.
+        if [ -n "${{ inputs.output-sarif }}" ]; then
+          pwned-deps "${args[@]}" --format sarif > "${{ inputs.output-sarif }}" || true
+          echo "sarif-path=${{ inputs.output-sarif }}" >> "$GITHUB_OUTPUT"
+        fi
+
+        echo "exit-code=$rc" >> "$GITHUB_OUTPUT"
+
+        case "${{ inputs.fail-on }}" in
+          never)
+            exit 0
+            ;;
+          compromised)
+            if [ "$rc" -eq 1 ]; then exit 1; fi
+            exit 0
+            ;;
+          any)
+            if [ "$rc" -eq 1 ] || [ "$rc" -eq 2 ]; then exit "$rc"; fi
+            exit 0
+            ;;
+          *)
+            echo "::error::Invalid fail-on value: ${{ inputs.fail-on }}"
+            exit 1
+            ;;
+        esac
+
+    - name: Upload SARIF to Code Scanning
+      if: ${{ inputs.upload-sarif == 'true' && inputs.output-sarif != '' && always() }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.output-sarif }}
+        category: pwned-deps

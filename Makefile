@@ -11,6 +11,7 @@
 #   make verify-safety        Grep src/ + tests/ for forbidden symbols (host-side)
 #   make verify-safety-self-test  Prove the regex catches a planted eval()
 #   make lint                 Ruff lint inside container (locked-down)
+#   make release-rehearsal    Run the exact pre-publish gate chain release.yml runs
 #   make pin-base             Capture current python:3.12-slim digest into base-image.lock
 #   make pin-deps             Regenerate requirements.lock from requirements.in with hashes
 #   make clean                Remove the dev image
@@ -52,7 +53,7 @@ RUN_FLAGS_LOCKED := --rm --network none --read-only \
 # regenerating the lockfile and adding deps).
 RUN_FLAGS_DEV := --rm -it -v $(PWD):/work -w /work
 
-.PHONY: help build shell test verify-safety verify-safety-self-test lint pin-base pin-deps clean
+.PHONY: help build shell test verify-safety verify-safety-self-test lint release-rehearsal pin-base pin-deps clean
 
 help:
 	@echo "pwned-deps Makefile targets:"
@@ -91,6 +92,34 @@ verify-safety-self-test:
 lint:
 	docker run $(RUN_FLAGS_LOCKED) -e RUFF_CACHE_DIR=/tmp/.ruff_cache $(IMAGE) \
 		ruff check src/ tests/
+
+# Mirror of .github/workflows/release.yml `build` job. Run this before
+# `git tag v*` — if it goes red here, the tag push will go red in CI.
+# Steps: safety self-test (host) → lint (locked) → test (locked) →
+# build wheel+sdist (host venv) → install wheel into a FRESH venv →
+# dogfood scan our own pyproject.toml + requirements.lock.
+# Exit-1 from the dogfood scan blocks the rehearsal (matches release.yml).
+release-rehearsal: verify-safety verify-safety-self-test lint test
+	@echo "[rehearsal] building wheel + sdist..."
+	@rm -rf dist build *.egg-info
+	@python3 -m venv .rehearsal-venv
+	@. .rehearsal-venv/bin/activate && \
+		pip install --quiet --upgrade pip build && \
+		python -m build >/dev/null && \
+		echo "[rehearsal] wheel: $$(ls dist/*.whl)"
+	@echo "[rehearsal] installing wheel into clean venv + dogfooding..."
+	@python3 -m venv .rehearsal-install-venv
+	@. .rehearsal-install-venv/bin/activate && \
+		pip install --quiet dist/*.whl && \
+		set +e; pwned-deps check ./pyproject.toml ./requirements.lock --ci; rc=$$?; set -e; \
+		rm -rf ../.rehearsal-install-venv 2>/dev/null || true; \
+		if [ $$rc -eq 1 ]; then \
+			echo "[rehearsal] FAIL: dogfood found a malicious package in our own deps (exit 1)"; \
+			exit 1; \
+		fi; \
+		echo "[rehearsal] dogfood exit $$rc (0=clean, 2=informational HIGH/CRITICAL)"
+	@rm -rf .rehearsal-venv .rehearsal-install-venv
+	@echo "[rehearsal] OK — safe to 'git tag v0.1.0 && git push origin v0.1.0'."
 
 pin-base:
 	@echo "Capturing current python:3.12-slim digest..."

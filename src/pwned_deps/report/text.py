@@ -145,6 +145,27 @@ def _print_finding(
     console.print(f"    {badge}")
     if adv.summary:
         console.print(f"    {adv.summary}")
+
+    # For EXTRA-* campaign hits, surface forensic data the user can
+    # act on right now: the tarball SHA-256 (so they can grep their
+    # artifact stores / container images) and the campaign-level IoCs
+    # (rogue repo descriptions, IDE-persistence files, C2 domains).
+    raw = adv.raw if isinstance(adv.raw, dict) else {}
+    package_entry = raw.get("package_entry") if isinstance(raw, dict) else None
+    if isinstance(package_entry, dict):
+        tarball_sha256 = package_entry.get("tarball_sha256")
+        if isinstance(tarball_sha256, str) and tarball_sha256:
+            console.print(f"    tarball sha256: {tarball_sha256}")
+
+    campaign = raw.get("campaign") if isinstance(raw, dict) else None
+    if isinstance(campaign, dict):
+        iocs = campaign.get("iocs")
+        if isinstance(iocs, list) and iocs:
+            console.print("    additional indicators to hunt for:")
+            for ioc in iocs:
+                if isinstance(ioc, str):
+                    console.print(f"      • {ioc}")
+
     if adv.references:
         ref_preview = ", ".join(adv.references[:3])
         more = "" if len(adv.references) <= 3 else f" (+{len(adv.references) - 3} more)"

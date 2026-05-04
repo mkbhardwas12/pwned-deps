@@ -1,0 +1,67 @@
+name: Bug report
+description: pwned-deps did the wrong thing on a real lockfile.
+title: "[bug] "
+labels: ["bug", "triage"]
+body:
+  - type: checkboxes
+    id: hygiene
+    attributes:
+      label: Pre-flight
+      description: Please confirm before filing.
+      options:
+        - label: I have **not** attached any compromised package archive (`.tgz`, `.whl`, `.zip`) to this issue. Patterns and hashes only, in text. (See [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md#poc-handling).)
+          required: true
+        - label: This is not a security vulnerability in pwned-deps itself. (Use [private vulnerability reporting](https://github.com/mkbhardwas12/pwned-deps/security/advisories/new) for that — see [SECURITY.md](../blob/main/SECURITY.md).)
+          required: true
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: pwned-deps version
+      description: Output of `pwned-deps version`.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.12.x"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command + output
+      description: Exact command, full output (use `--ci` for deterministic output). Redact paths if needed.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: lockfile
+    attributes:
+      label: Minimal lockfile snippet (text)
+      description: |
+        Paste the smallest lockfile fragment that reproduces the bug.
+        **Text only.** Do not attach the full lockfile if it contains private package names you cannot share.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+    validations:
+      required: true

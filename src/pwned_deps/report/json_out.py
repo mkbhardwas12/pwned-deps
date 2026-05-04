@@ -44,6 +44,22 @@ def render_json(reports: Sequence[ScanReport], *, version: str) -> tuple[str, in
             "findings": [],
         }
         for finding in report.findings:
+            adv_raw = finding.advisory.raw if isinstance(finding.advisory.raw, dict) else {}
+            package_entry = adv_raw.get("package_entry") if isinstance(adv_raw, dict) else None
+            campaign = adv_raw.get("campaign") if isinstance(adv_raw, dict) else None
+
+            tarball_sha256: str | None = None
+            if isinstance(package_entry, dict):
+                value = package_entry.get("tarball_sha256")
+                if isinstance(value, str) and value:
+                    tarball_sha256 = value
+
+            iocs: list[str] = []
+            if isinstance(campaign, dict):
+                raw_iocs = campaign.get("iocs")
+                if isinstance(raw_iocs, list):
+                    iocs = [s for s in raw_iocs if isinstance(s, str)]
+
             lockfile_block["findings"].append(
                 {
                     "id": finding.advisory.id,
@@ -55,6 +71,8 @@ def render_json(reports: Sequence[ScanReport], *, version: str) -> tuple[str, in
                     "references": list(finding.advisory.references),
                     "is_malicious": finding.is_malicious,
                     "campaign_name": finding.campaign_name,
+                    "tarball_sha256": tarball_sha256,
+                    "iocs": iocs,
                 }
             )
             if finding.is_malicious:

@@ -112,3 +112,22 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   contributing flow with the 5-minute campaign-PR procedure, and
   added a maintenance-cadence section reflecting the brief's
   burnout-mitigation guidance.
+- Post-V1: replaced `YOUR_GH_USERNAME` placeholder with `mkbhardwas12`
+  across 6 files; dropped the now-stale "(placeholder — sed-replace
+  before publish)" parenthetical.
+- Post-V1: hash-pinned `requirements.lock` per safety contract §2.6
+  (`requirements.in` + `pip-compile --generate-hashes`,
+  `Dockerfile.dev` enforces `--require-hashes`, `make pin-deps`
+  regenerates). Version bumps with regeneration: click 8.1.7→8.3.3,
+  httpx 0.27.2→0.28.1, jsonschema 4.23.0→4.26.0, pytest 8.3.3→8.4.2,
+  pytest-httpx 0.32.0→0.35.0, pyyaml 6.0.2→6.0.3, rich 13.9.4→14.3.4,
+  ruff 0.7.4→0.15.12. One test updated for the click 8.3
+  `CliRunner(mix_stderr=...)` removal.
+- Post-V1: added `EXTRA-2026-0002` "Mini Shai-Hulud follow-on
+  (intercom-client + lightning)" to the bundled extras feed.
+  Sourced from Wiz: `intercom-client@7.0.5`, `lightning@2.6.2`,
+  `lightning@2.6.3` poisoned April 30 2026 by the same operator
+  (shared C2 `zero.masscan.cloud`, fallback via GitHub commits
+  keyed `beautifulcastle`). Payload evolved to target Kubernetes
+  + HashiCorp Vault. Two new tests + one fixture
+  (`mini-shaihulud-followon.lock.json`).

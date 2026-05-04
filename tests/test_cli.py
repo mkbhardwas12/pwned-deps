@@ -219,7 +219,7 @@ def test_check_multiple_paths_skips_unrecognised(
         json={"results": [{}]},
     )
 
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     result = runner.invoke(
         main,
         [
@@ -233,5 +233,6 @@ def test_check_multiple_paths_skips_unrecognised(
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
-    assert "skipping" in (result.stderr or "")
+    # click 8.3+ exposes stderr separately on result.stderr.
+    assert "skipping" in (result.stderr or result.output)
     assert "clean.lock.json" in result.output

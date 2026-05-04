@@ -37,10 +37,11 @@ RUN groupadd --gid ${APP_GID} appuser \
 
 WORKDIR /work
 
-# Install only the pinned dev tooling. Production runtime deps are added
-# in later build steps as they become needed.
+# Install pinned dev + runtime dependencies. `--require-hashes` enforces
+# that every entry (including transitives) carries a SHA-256 — failed
+# hash verification aborts the build. Regenerate via `make pin-deps`.
 COPY requirements.lock /tmp/requirements.lock
-RUN pip install --no-cache-dir -r /tmp/requirements.lock \
+RUN pip install --no-cache-dir --require-hashes -r /tmp/requirements.lock \
  && rm /tmp/requirements.lock
 
 # Drop privileges before any source is touched.

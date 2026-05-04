@@ -1,0 +1,21 @@
+# Top-level dev + runtime dependencies for the pwned-deps dev container.
+# `make pin-deps` uses pip-tools to compile this into a fully-resolved,
+# hash-pinned `requirements.lock`. Do not edit `requirements.lock` by
+# hand — regenerate from this file.
+#
+# Versions here are loose floors that match the ranges declared in
+# pyproject.toml. The compiled lock file pins exact versions + hashes.
+
+# --- Runtime ---
+click >=8.1,<9.0
+httpx >=0.27,<1.0
+packaging >=24.0,<28.0
+pyyaml >=6.0,<7.0
+rich >=13.0,<15.0
+tomli >=2.0; python_version < "3.11"
+
+# --- Dev / CI tooling ---
+jsonschema >=4.20,<5.0
+pytest >=8.0,<9.0
+pytest-httpx >=0.30,<1.0
+ruff >=0.6,<1.0

@@ -44,6 +44,14 @@
         "2026-04-29T14:00:00Z"
       ],
       "_exposure_window_note": "Start time 09:55 UTC is cited from thehackernews.com (publication time of the suspicious versions). End time 14:00 UTC is a CONSERVATIVE upper bound derived from SecurityBridge's 'roughly two to four hours' phrasing — no source we checked publishes an exact removal timestamp. TODO(precise-end-time): replace 14:00 UTC if a source confirms the npm registry pull time.",
+      "iocs": [
+        "GitHub repos with description 'A Mini Shai-Hulud has Appeared' on the victim's own account (attacker exfiltration channel; live search: https://github.com/search?q=%22A+Mini+Shai-Hulud+has+Appeared%22&type=repositories).",
+        "Commits whose message starts with 'OhNoWhatsGoingOnWithGitHub:' (default exfiltration commit message; embeds a base64-encoded GitHub token).",
+        "Commits authored by 'claude <claude@users.noreply.github.com>' or with the message 'chore: update dependencies' (suggestive but not conclusive; per SAP Note 3747787).",
+        "Files dropped into other repos as IDE persistence: .claude/execution.js, .claude/setup.mjs, .claude/settings.json, .vscode/setup.mjs, .vscode/tasks.json with a task named 'Environment Setup' (runOn: folderOpen).",
+        "setup.mjs SHA-256: 4066781fa830224c8bbcc3aa005a396657f9c8f9016f9a64ad44a9d7f5f45e34 (shared dropper across all four packages).",
+        "execution.js (per-package SHA-256s): @cap-js/sqlite — 6f933d00b7d05678eb43c90963a80b8947c4ae6830182f89df31da9f568fea95; @cap-js/postgres + @cap-js/db-service — eb6eb4154b03ec73218727dc643d26f4e14dfda2438112926bb5daf37ae8bcdb; mbt — 80a3d2877813968ef847ae73b5eeeb70b9435254e74d7f07d8cf4057f0a710ac."
+      ],
       "actions": [
         "Search lockfiles, containers, and artifact stores for the four affected (name, version) pairs and any of the published .tgz SHA256 digests.",
         "If exposure is suspected, treat the host as compromised: re-image rather than uninstall.",
@@ -67,12 +75,15 @@
         {
           "name": "intercom-client",
           "versions": ["7.0.5"],
+          "ecosystem": "npm",
           "source": "wiz.io"
         },
         {
           "name": "lightning",
           "versions": ["2.6.2", "2.6.3"],
-          "source": "wiz.io"
+          "ecosystem": "PyPI",
+          "source": "wiz.io",
+          "_ecosystem_note": "Wiz explicitly identifies this as a PyPI package, not npm. The per-package `ecosystem` override prevents this entry from being silently ignored on Python lockfiles. Value is `PyPI` (capital P) to match the OSV-vocabulary string used by the matcher."
         }
       ],
       "exposure_window": [
@@ -81,6 +92,12 @@
       ],
       "_exposure_window_note": "Wiz pins the date (April 30, 2026) but does not publish UTC start/end stamps for the publication or removal of these versions. We use a conservative whole-day window. TODO(precise-window): tighten if a primary source publishes the exact times.",
       "_tarball_sha256_note": "TODO(tarball-sha256): Wiz did not publish SHA-256 digests for these three .tgz files at the time of this writing. Add them when a primary source publishes them.",
+      "iocs": [
+        "Outbound traffic to zero.masscan.cloud (primary C2) or 94.154.172.43/v1/telemetry (resolved exfiltration endpoint at time of analysis).",
+        "Git commit history mentioning 'beautifulcastle' (the operator's documented fallback channel — base64-encoded payload pointing at fresh exfil endpoints).",
+        "Commits with message starting 'OhNoWhatsGoingOnWithGitHub:' (same exfiltration channel as EXTRA-2026-0001).",
+        "Kubernetes ServiceAccount tokens or HashiCorp Vault tokens reachable from CI runners that pulled these versions — the April-30 payload added explicit Vault + K8s targeting."
+      ],
       "actions": [
         "Same remediation list as EXTRA-2026-0001 — same operator, same shared infrastructure, expanded payload.",
         "In addition: rotate HashiCorp Vault tokens and audit Kubernetes ServiceAccount tokens reachable from any CI that pulled these versions (the April-30 payload added explicit Vault + Kubernetes targeting).",

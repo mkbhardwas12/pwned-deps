@@ -74,9 +74,7 @@ class ExtrasFeed:
 
         out: list[CampaignMatch] = []
         for campaign in self._campaigns:
-            ecosystem = campaign.get("ecosystem")
-            if not isinstance(ecosystem, str):
-                continue
+            campaign_eco = campaign.get("ecosystem")
             packages_block = campaign.get("packages", [])
             if not isinstance(packages_block, list):
                 continue
@@ -85,6 +83,14 @@ class ExtrasFeed:
                     continue
                 name = entry.get("name")
                 versions = entry.get("versions")
+                # Per-package ecosystem override: a single campaign may
+                # cover packages on multiple ecosystems (e.g. Mini Shai-Hulud
+                # follow-on — intercom-client on npm, lightning on PyPI).
+                # If the entry doesn't specify, fall back to the campaign-
+                # level value.
+                ecosystem = entry.get("ecosystem", campaign_eco)
+                if not isinstance(ecosystem, str):
+                    continue
                 if not isinstance(name, str) or not isinstance(versions, list):
                     continue
                 for pkg in lockfile.packages:

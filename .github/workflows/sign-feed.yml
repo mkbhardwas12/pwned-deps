@@ -1,0 +1,96 @@
+name: Sign feed (Sigstore / Rekor)
+
+# On every push to main that touches the bundled campaign feed, sign
+# `extras.json` with sigstore-python keyless OIDC. The signing event
+# logs an immutable entry to the public Rekor transparency log
+# (https://search.sigstore.dev), which is the actual trust artifact —
+# not a checked-in `.sig` file.
+#
+# Why no commit-back / asset upload?
+#
+#   1. Rekor is append-only and publicly auditable. The signature is
+#      *implicit* in the log entry; storing it in the repo is
+#      duplication.
+#   2. Anyone can verify a given extras.json content hash was signed
+#      by THIS repository's GitHub Actions OIDC identity, at a known
+#      time, without trusting our git history. Force-pushes can't
+#      forge Rekor entries.
+#   3. Avoids the foot-gun of a workflow committing back to main
+#      (PAT requirements, race conditions, signed-commit policy).
+#
+# Verification recipe lives in SECURITY.md §"Verifying the campaign
+# feed".
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/pwned_deps/extras_data/extras.json"
+  # Allow the maintainer to re-sign the current main on demand.
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # required for keyless OIDC signing
+  contents: read
+
+jobs:
+  sign:
+    name: keyless sign extras.json
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install sigstore-python
+        run: pip install --quiet "sigstore>=3.6,<4"
+
+      - name: Compute SHA-256 (for the audit log)
+        id: hash
+        run: |
+          sha256=$(sha256sum src/pwned_deps/extras_data/extras.json | awk '{print $1}')
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+          echo "extras.json sha256: $sha256"
+
+      - name: Sign (keyless, identity = this workflow)
+        run: |
+          python -m sigstore sign \
+            --bundle /tmp/extras.json.sigstore \
+            src/pwned_deps/extras_data/extras.json
+          echo "Rekor entry created. Verify with:"
+          echo "  python -m sigstore verify identity \\"
+          echo "    --bundle extras.json.sigstore \\"
+          echo "    --cert-identity 'https://github.com/${{ github.repository }}/.github/workflows/sign-feed.yml@${{ github.ref }}' \\"
+          echo "    --cert-oidc-issuer 'https://token.actions.githubusercontent.com' \\"
+          echo "    src/pwned_deps/extras_data/extras.json"
+
+      - name: Upload bundle as workflow artifact
+        # The bundle (cert + signature + Rekor log proof) is the
+        # offline-verifiable artifact. Anyone can download this from
+        # the workflow run and re-verify against the source file at
+        # the matching commit.
+        uses: actions/upload-artifact@v4
+        with:
+          name: extras-json-sigstore-bundle
+          path: /tmp/extras.json.sigstore
+          retention-days: 90
+
+      - name: Append to job summary
+        run: |
+          {
+            echo "## Feed signed"
+            echo ""
+            echo "- **File**: \`src/pwned_deps/extras_data/extras.json\`"
+            echo "- **SHA-256**: \`${{ steps.hash.outputs.sha256 }}\`"
+            echo "- **Commit**: \`${{ github.sha }}\`"
+            echo "- **Rekor identity**: \`https://github.com/${{ github.repository }}/.github/workflows/sign-feed.yml@${{ github.ref }}\`"
+            echo ""
+            echo "Search the Rekor transparency log:"
+            echo ""
+            echo '```'
+            echo "rekor-cli search --sha ${{ steps.hash.outputs.sha256 }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

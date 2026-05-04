@@ -1,0 +1,14 @@
+# Default reviewers. Required for the campaign feed so feed PRs
+# cannot be self-merged by anyone but the maintainer.
+* @mkbhardwas12
+
+# Hard pin: the campaign feed is the project's editorial moat.
+# Touching this requires explicit maintainer review.
+/src/pwned_deps/extras_data/ @mkbhardwas12
+
+# Release infrastructure — gates, OIDC publishing, SLSA provenance.
+/.github/workflows/release.yml @mkbhardwas12
+/action.yml                    @mkbhardwas12
+/Dockerfile.dev                @mkbhardwas12
+/requirements.lock             @mkbhardwas12
+/base-image.lock               @mkbhardwas12

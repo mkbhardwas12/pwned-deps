@@ -3,10 +3,13 @@
 > **Drop your lockfile in, find out if you're pwned.**
 
 <!-- TODO(logo): place a 256x256 PNG at docs/logo.png and reference it here. -->
+<!-- TODO(demo): record with `vhs demo.tape`, commit the resulting docs/demo.gif. -->
+<!-- ![pwned-deps demo](docs/demo.gif) -->
 
 [![CI](https://github.com/mkbhardwas12/pwned-deps/actions/workflows/ci.yml/badge.svg)](https://github.com/mkbhardwas12/pwned-deps/actions/workflows/ci.yml)
 [![PyPI version](https://img.shields.io/pypi/v/pwned-deps.svg)](https://pypi.org/project/pwned-deps/)
 [![Python versions](https://img.shields.io/pypi/pyversions/pwned-deps.svg)](https://pypi.org/project/pwned-deps/)
+[![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 `pwned-deps` is a Python CLI that takes one or more developer lockfiles
@@ -98,12 +101,128 @@ variable versions (`${spring.version}`) are scanned but reported as
 `version_unspecified` — we cannot match an advisory without an exact
 version, so they're surfaced as a warning rather than skipped silently.
 
+## Real-world scenarios this is built for
+
+These are the questions developers and security teams actually ask
+in the first hour of a published supply-chain incident. The launch
+campaign — [Mini Shai-Hulud (Apr 29, 2026)](https://securitybridge.com/blog/a-mini-shai-hulud-has-appeared-when-the-npm-supply-chain-reaches-into-sap/) — is the worked example, but the pattern
+recurs every few months.
+
+**"Did *we* run `npm install` during the 2-hour window?"**
+Pipe every lockfile in the org through `pwned-deps check`. Exit 1
+is the receipt that something matched. The bundled campaign feed
+(`extras.json`) covers the four SAP CAP packages the day of the
+incident — you don't have to wait for OSV.dev ingestion.
+
+**"Where in our artifact stores are the bad tarballs?"**
+For campaigns where a primary source publishes the malicious
+`.tgz` SHA-256 (Wiz did for Mini Shai-Hulud), the CLI now prints
+the hash next to every flagged version:
+
+```
+  @cap-js/sqlite@2.2.2
+    EXTRA-2026-0001  Mini Shai-Hulud (SAP CAP)
+    tarball sha256: a1da198bb4e883d077a0e13351bf2c3acdea10497152292e873d79d4f7420211
+```
+
+Feed that into `find . -name '*.tgz' -exec sha256sum {} +` against
+your npm cache, container image layers, and artifact registries
+for forensic confirmation — SecurityBridge's recommended approach
+rather than relying on version strings alone.
+
+**"What else should we hunt for beyond the lockfile?"**
+Most real campaigns leave non-lockfile traces: rogue GitHub repos
+on the victim's own account, IDE-config persistence files
+(`.claude/execution.js`, `.vscode/setup.mjs`), known C2 domains.
+Each campaign in `extras.json` carries an `iocs` list and the CLI
+surfaces it next to every finding:
+
+```
+  additional indicators to hunt for:
+    • GitHub repos with description 'A Mini Shai-Hulud has Appeared' …
+    • Commits whose message starts with 'OhNoWhatsGoingOnWithGitHub:' …
+    • Files dropped into other repos: .claude/execution.js, .vscode/setup.mjs …
+```
+
+No more cross-referencing three vendor blogs to assemble the
+remediation list.
+
+**"What about the follow-on packages? They were on a different
+ecosystem."**
+`extras.json` supports per-package ecosystem overrides so a single
+campaign can span npm, PyPI, crates.io, etc. EXTRA-2026-0002
+covers `intercom-client@7.0.5` (npm) and `lightning@2.6.2/2.6.3`
+(PyPI) under one campaign — the same operator, the same shared
+C2, distinct package registries.
+
+**"How do we trust the campaign feed itself?"**
+Every change to `extras.json` on `main` is signed with sigstore
+keyless OIDC and logged to the public Rekor transparency log. See
+[SECURITY.md](SECURITY.md) §"Verifying the campaign feed" for the
+verification recipe. Force-pushes and silent removals can't escape
+the append-only log.
+
+## CI integration
+
+### GitHub Actions (one line)
+
+```yaml
+- uses: mkbhardwas12/pwned-deps@v0.1.0
+  with:
+    path: .
+    fail-on: compromised   # also: `any` (HIGH/CRITICAL too) or `never`
+    upload-sarif: true     # writes to GitHub Code Scanning
+```
+
+The action installs `pwned-deps` from PyPI, scans every recognised
+lockfile under `path`, and uploads SARIF to Code Scanning. Step fails
+the build on exit `1` (compromised package) by default. See
+[action.yml](action.yml) for all inputs.
+
+### Plain workflow step (no action wrapper)
+
+```yaml
+- run: pip install pwned-deps && pwned-deps check . --ci
+```
+
+Exit `1` fails the build. Exit `2` is HIGH/CRITICAL CVEs (no
+malicious hits) — you decide whether that fails or warns.
+
+### pre-commit
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/mkbhardwas12/pwned-deps
+    rev: v0.1.0
+    hooks:
+      - id: pwned-deps           # online (api.osv.dev)
+      # or:
+      # - id: pwned-deps-offline # cache only, no network
+```
+
+The hook only fires when a recognised lockfile changes — unrelated
+commits skip the network entirely.
+
+### GitLab CI
+
+```yaml
+pwned-deps:
+  image: python:3.12-slim
+  script:
+    - pip install pwned-deps
+    - pwned-deps check . --ci
+  allow_failure: false
+```
+
+
 ## Output formats
 
 * **`text`** (default) — colourful terminal output via `rich`,
   MAL-*/EXTRA-* findings prominently flagged.
-* **`json`** — machine-readable; stable schema documented in
-  [docs/json-schema.md](docs/json-schema.md) (placeholder).
+* **`json`** — machine-readable. Stable schema (top-level: `version`,
+  `summary`, `lockfiles[]`, each lockfile carries `findings[]` with
+  `id`, `severity`, `package`, `version`, `references`).
 * **`sarif`** — SARIF v2.1.0 for GitHub Code Scanning upload. Validates
   against the OASIS schema; `partialFingerprints.primaryLocationLineHash`
   is set so the same finding dedups across runs.
@@ -146,6 +265,26 @@ If `pwned-deps` itself were compromised, the irony would kill the
 project. We treat account hygiene as tier-1: hardware-key 2FA on
 GitHub, OIDC trusted publishing on PyPI, no shared maintainer
 credentials.
+
+### Verify a release with SLSA provenance
+
+Every published wheel and sdist ships with SLSA Level 3 build
+provenance generated by [`slsa-github-generator`](https://github.com/slsa-framework/slsa-github-generator).
+Verify before installing if you're paranoid (or in a regulated
+environment):
+
+```bash
+pip download --no-deps pwned-deps
+# Grab the matching *.intoto.jsonl from the GitHub Release page,
+# then:
+slsa-verifier verify-artifact pwned_deps-*.whl \
+    --provenance-path pwned_deps-*.intoto.jsonl \
+    --source-uri github.com/mkbhardwas12/pwned-deps
+```
+
+A passing `slsa-verifier` run cryptographically proves the wheel
+was built by [release.yml](.github/workflows/release.yml) on this
+repository, by the tagged commit, with no human-in-the-middle.
 
 ## Comparison
 

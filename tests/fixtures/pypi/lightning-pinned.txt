@@ -1,0 +1,8 @@
+# Synthetic PyPI lockfile pinning lightning@2.6.2 — the PyPI half of
+# EXTRA-2026-0002 (per Wiz blog: "PyPI package lightning@2.6.2 and 2.6.3").
+#
+# Used by tests/test_step7_mini_shaihulud.py to confirm the per-package
+# ecosystem override actually catches the PyPI hit. Before the fix this
+# entry was silently ignored because the campaign-level ecosystem said
+# "npm".
+lightning==2.6.2

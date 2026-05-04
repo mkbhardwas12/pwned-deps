@@ -1,0 +1,58 @@
+# pre-commit hook for pwned-deps.
+# Usage in a consumer repo's .pre-commit-config.yaml:
+#
+#   repos:
+#     - repo: https://github.com/mkbhardwas12/pwned-deps
+#       rev: v0.1.0
+#       hooks:
+#         - id: pwned-deps
+#
+# By default the hook only runs when a recognised lockfile changes
+# (see `files` regex). It calls `pwned-deps check --ci` against the
+# changed files, so non-lockfile commits skip the network entirely.
+
+- id: pwned-deps
+  name: pwned-deps (compromised package scan)
+  description: Scan lockfiles for MAL-* / EXTRA-* compromised package versions.
+  entry: pwned-deps check --ci
+  language: python
+  pass_filenames: true
+  files: |
+    (?x)^(
+        .*package-lock\.json|
+        .*npm-shrinkwrap\.json|
+        .*pnpm-lock\.yaml|
+        .*yarn\.lock|
+        .*requirements.*\.txt|
+        .*requirements.*\.lock|
+        .*Pipfile\.lock|
+        .*poetry\.lock|
+        .*uv\.lock|
+        .*Cargo\.lock|
+        .*go\.sum|
+        .*pom\.xml|
+        .*Gemfile\.lock
+    )$
+
+- id: pwned-deps-offline
+  name: pwned-deps (offline cache only)
+  description: Same as `pwned-deps` but does not hit api.osv.dev — uses the local SQLite cache.
+  entry: pwned-deps check --ci --offline
+  language: python
+  pass_filenames: true
+  files: |
+    (?x)^(
+        .*package-lock\.json|
+        .*npm-shrinkwrap\.json|
+        .*pnpm-lock\.yaml|
+        .*yarn\.lock|
+        .*requirements.*\.txt|
+        .*requirements.*\.lock|
+        .*Pipfile\.lock|
+        .*poetry\.lock|
+        .*uv\.lock|
+        .*Cargo\.lock|
+        .*go\.sum|
+        .*pom\.xml|
+        .*Gemfile\.lock
+    )$

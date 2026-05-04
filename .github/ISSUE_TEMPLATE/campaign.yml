@@ -1,0 +1,81 @@
+name: New compromised-package campaign
+description: Add a new entry to the bundled extras.json feed.
+title: "[campaign] "
+labels: ["campaign", "extras-feed"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this to **propose** a new campaign. For the actual addition,
+        open a PR editing `src/pwned_deps/extras_data/extras.json` —
+        see [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md#adding-a-new-compromised-package-campaign).
+  - type: checkboxes
+    id: hygiene
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I have **not** attached any compromised package archive to this issue.
+          required: true
+        - label: I have at least one named-blog or advisory citation (Wiz, SecurityBridge, Sophos, Snyk, GHSA, OSV — not Twitter/X).
+          required: true
+        - label: I am **not fabricating** version numbers. If a source doesn't pin the version, I will mark it `TODO(precise-version)`.
+          required: true
+  - type: input
+    id: name
+    attributes:
+      label: Campaign name
+      placeholder: "Mini Shai-Hulud follow-on (intercom-client + lightning)"
+    validations:
+      required: true
+  - type: dropdown
+    id: ecosystem
+    attributes:
+      label: Ecosystem
+      options:
+        - npm
+        - pypi
+        - crates
+        - go
+        - maven
+        - rubygems
+    validations:
+      required: true
+  - type: textarea
+    id: packages
+    attributes:
+      label: Affected (name, version) pairs
+      description: One per line. Cite the source for each version.
+      placeholder: |
+        intercom-client@7.0.5  (source: wiz.io)
+        lightning@2.6.2        (source: wiz.io)
+        lightning@2.6.3        (source: wiz.io)
+    validations:
+      required: true
+  - type: input
+    id: window-start
+    attributes:
+      label: Exposure window — start (UTC)
+      placeholder: "2026-04-30T00:00:00Z"
+    validations:
+      required: true
+  - type: input
+    id: window-end
+    attributes:
+      label: Exposure window — end (UTC)
+      placeholder: "2026-04-30T23:59:59Z (conservative — note basis below)"
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: At least one named source. Markdown links OK.
+    validations:
+      required: true
+  - type: textarea
+    id: actions
+    attributes:
+      label: Remediation actions
+      description: Concrete, imperative, credential-rotation-first.
+    validations:
+      required: true

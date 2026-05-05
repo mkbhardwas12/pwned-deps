@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pwned-deps"
-version = "0.1.0"
+version = "0.1.0rc1"
 description = "Drop your lockfile in, find out if you're pwned. Compromised-package scanner backed by OSV.dev."
 readme = "README.md"
 requires-python = ">=3.10"

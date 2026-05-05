@@ -53,7 +53,7 @@ RUN_FLAGS_LOCKED := --rm --network none --read-only \
 # regenerating the lockfile and adding deps).
 RUN_FLAGS_DEV := --rm -it -v $(PWD):/work -w /work
 
-.PHONY: help build shell test verify-safety verify-safety-self-test lint release-rehearsal smoke-local pin-base pin-deps demo-gif clean
+.PHONY: help build shell test verify-safety verify-safety-self-test lint release-rehearsal smoke-local pin-base pin-deps demo-gif simulator-gif clean
 
 help:
 	@echo "pwned-deps Makefile targets:"
@@ -209,6 +209,12 @@ pin-deps:
 # local install of pwned-deps from this checkout.
 demo-gif:
 	bash tools/render_demo_gif.sh
+
+simulator-gif:
+	@command -v ffmpeg >/dev/null || { echo "ffmpeg not found; brew install ffmpeg"; exit 1; }
+	.venv/bin/pip install -q playwright >/dev/null
+	.venv/bin/playwright install -q chromium >/dev/null
+	.venv/bin/python tools/record_simulator_gif.py
 
 clean:
 	-docker image rm $(IMAGE) 2>/dev/null || true

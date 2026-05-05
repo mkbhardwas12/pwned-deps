@@ -334,6 +334,17 @@ function escapeHtml(s) {
 }
 
 scanBtn.addEventListener("click", scan);
+
+// Optional autorun via ?autorun=mixed (used by the GIF recorder).
+const params = new URLSearchParams(location.search);
+const autorun = params.get("autorun");
+if (autorun && SAMPLES[autorun]) {
+  sampleSel.value = autorun;
+  showLockfile();
+  // Slight delay so the first frame captured by the recorder shows
+  // the static page before the scan begins.
+  setTimeout(scan, 600);
+}
 </script>
 </body>
 </html>

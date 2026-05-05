@@ -233,6 +233,8 @@ runs a faithful in-browser replay of `pwned-deps check` against four
 sample lockfiles (Mini Shai-Hulud, event-stream historic, mixed,
 clean). Real campaign data, no network calls.
 
+[![lockfile simulator demo: pwned-deps check replays in-browser against a mixed npm lockfile and flags two malicious packages](docs/assets/demo-simulator.gif)](https://mkbhardwas12.github.io/pwned-deps/simulator.html)
+
 Below are the same outputs captured against bundled fixtures:
 
 > Real terminal output — captured with `tools/capture_demos.py` against

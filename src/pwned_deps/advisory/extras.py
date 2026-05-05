@@ -26,11 +26,25 @@ from pwned_deps.parsers.base import Lockfile, Package
 
 @dataclass(frozen=True)
 class CampaignMatch:
-    """A campaign hit bound to the package it matched."""
+    """A campaign hit bound to the package it matched.
+
+    ``is_suspect`` distinguishes two confidence tiers:
+
+    * False (default) — exact ``(name, version)`` match against the
+      campaign's ``packages`` block. This is a CONFIRMED malicious
+      install; renderer marks as MALICIOUS and CLI exits 1.
+    * True — the package name appears in a ``compromised_maintainers``
+      block but we cannot prove the *version* in the lockfile was the
+      one published while the maintainer account was compromised
+      (lockfiles don't carry publish timestamps). The user should
+      treat this as a HIGH-severity warning to investigate, not a
+      confirmed compromise. Renderer marks as SUSPECT and CLI exits 2.
+    """
 
     package: Package
     advisory: Advisory
     campaign_name: str
+    is_suspect: bool = False
 
 
 class ExtrasFeed:
@@ -70,15 +84,37 @@ class ExtrasFeed:
         return tuple(self._campaigns)
 
     def find_matches(self, lockfile: Lockfile) -> list[CampaignMatch]:
-        """Return campaign hits for the packages in ``lockfile``."""
+        """Return campaign hits for the packages in ``lockfile``.
+
+        Two match paths:
+
+        1. Exact ``(name, version)`` against the campaign's ``packages``
+           block — emitted as a CONFIRMED hit (``is_suspect=False``).
+        2. Package name appears in any ``compromised_maintainers[].packages``
+           list — emitted as a SUSPECT hit (``is_suspect=True``).
+
+        Both paths can fire for the same package; deduplication by
+        advisory id happens upstream in the matcher.
+        """
 
         out: list[CampaignMatch] = []
         for campaign in self._campaigns:
             campaign_eco = campaign.get("ecosystem")
-            packages_block = campaign.get("packages", [])
-            if not isinstance(packages_block, list):
-                continue
-            for entry in packages_block:
+            out.extend(self._exact_version_matches(lockfile, campaign, campaign_eco))
+            out.extend(self._maintainer_suspect_matches(lockfile, campaign, campaign_eco))
+        return out
+
+    def _exact_version_matches(
+        self,
+        lockfile: Lockfile,
+        campaign: dict[str, Any],
+        campaign_eco: Any,
+    ) -> list[CampaignMatch]:
+        out: list[CampaignMatch] = []
+        packages_block = campaign.get("packages", [])
+        if not isinstance(packages_block, list):
+            return out
+        for entry in packages_block:
                 if not isinstance(entry, dict):
                     continue
                 name = entry.get("name")
@@ -109,6 +145,61 @@ class ExtrasFeed:
                             campaign_name=str(campaign.get("name", campaign.get("id", "extras"))),
                         )
                     )
+        return out
+
+    def _maintainer_suspect_matches(
+        self,
+        lockfile: Lockfile,
+        campaign: dict[str, Any],
+        campaign_eco: Any,
+    ) -> list[CampaignMatch]:
+        out: list[CampaignMatch] = []
+        block = campaign.get("compromised_maintainers", [])
+        if not isinstance(block, list):
+            return out
+        # Collect already-confirmed (name, version) pairs in this campaign
+        # so we don't double-emit a SUSPECT for something already CONFIRMED.
+        confirmed_names: set[tuple[str, str]] = set()
+        for entry in campaign.get("packages", []) or []:
+            if not isinstance(entry, dict):
+                continue
+            n = entry.get("name")
+            eco = entry.get("ecosystem", campaign_eco)
+            if isinstance(n, str) and isinstance(eco, str):
+                confirmed_names.add((eco, n))
+        for maintainer in block:
+            if not isinstance(maintainer, dict):
+                continue
+            ecosystem = maintainer.get("ecosystem", campaign_eco)
+            if not isinstance(ecosystem, str):
+                continue
+            pkg_names = maintainer.get("packages", [])
+            if not isinstance(pkg_names, list):
+                continue
+            wanted_names = {n for n in pkg_names if isinstance(n, str)}
+            for pkg in lockfile.packages:
+                if pkg.version_unspecified:
+                    continue
+                if pkg.ecosystem.value != ecosystem:
+                    continue
+                if pkg.name not in wanted_names:
+                    continue
+                if (ecosystem, pkg.name) in confirmed_names:
+                    # Already covered by an exact-version entry; no need
+                    # to additionally surface as SUSPECT.
+                    continue
+                out.append(
+                    CampaignMatch(
+                        package=pkg,
+                        advisory=_suspect_advisory_from_maintainer(
+                            campaign, maintainer, pkg
+                        ),
+                        campaign_name=str(
+                            campaign.get("name", campaign.get("id", "extras"))
+                        ),
+                        is_suspect=True,
+                    )
+                )
         return out
 
 
@@ -174,5 +265,51 @@ def _advisory_from_campaign(
         raw={
             "campaign": campaign,
             "package_entry": package_entry,
+        },
+    )
+
+
+def _suspect_advisory_from_maintainer(
+    campaign: dict[str, Any],
+    maintainer: dict[str, Any],
+    pkg: Package,
+) -> Advisory:
+    """Build a HIGH-severity advisory for a maintainer-suspect hit.
+
+    Distinct ``id`` (``<campaign_id>-suspect-<maintainer>``) so it
+    dedupes separately from the campaign's exact-version entries and
+    so users can grep / mute it independently.
+    """
+
+    references = tuple(
+        ref for ref in campaign.get("references", []) if isinstance(ref, str)
+    )
+    handle = maintainer.get("name", "unknown-maintainer")
+    window = ""
+    after = maintainer.get("compromised_after")
+    until = maintainer.get("compromised_until")
+    if isinstance(after, str) and isinstance(until, str):
+        window = f" (compromised window {after} to {until})"
+    elif isinstance(after, str):
+        window = f" (compromised after {after})"
+    summary = (
+        f"SUSPECT: {pkg.name} was published by maintainer '{handle}' whose "
+        f"account was compromised{window}. Versions installed during the "
+        f"window should be treated as compromised; this lockfile does not "
+        f"carry a publish timestamp so the match cannot be confirmed."
+    )
+    campaign_id = str(campaign.get("id", "EXTRA"))
+    return Advisory(
+        id=f"{campaign_id}-suspect-{handle}",
+        summary=summary,
+        ecosystem=pkg.ecosystem.value,
+        package=pkg.name,
+        version=pkg.version,
+        references=references,
+        severity=Severity.HIGH,
+        raw={
+            "campaign": campaign,
+            "maintainer": maintainer,
+            "match_type": "compromised_maintainer",
         },
     )

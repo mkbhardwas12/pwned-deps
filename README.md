@@ -19,6 +19,38 @@
 [![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
+## Table of contents
+
+- [At a glance](#at-a-glance)
+- [Architecture](#architecture)
+- [Why this exists](#why-this-exists)
+  - [Campaigns the bundled feed already covers](#campaigns-the-bundled-feed-already-covers)
+  - [A worked example: Mini Shai-Hulud (April 29, 2026)](#a-worked-example-mini-shai-hulud-april-29-2026)
+- [Install](#install)
+- [See it in action](#see-it-in-action)
+  - [Benchmark](#benchmark)
+- [Quick usage](#quick-usage)
+- [Watch mode (the recurring-value workflow)](#watch-mode-the-recurring-value-workflow)
+- [Supported ecosystems](#supported-ecosystems)
+- [Real-world scenarios this is built for](#real-world-scenarios-this-is-built-for)
+- [CI integration](#ci-integration)
+  - [GitHub Actions (one line)](#github-actions-one-line)
+  - [Plain workflow step (no action wrapper)](#plain-workflow-step-no-action-wrapper)
+  - [Sticky PR comment (the bot workflow)](#sticky-pr-comment-the-bot-workflow)
+  - [Static HTML dashboard (org-wide visibility)](#static-html-dashboard-org-wide-visibility)
+  - [pre-commit](#pre-commit)
+  - [GitLab CI](#gitlab-ci)
+- [Output formats](#output-formats)
+- [Threat model](#threat-model)
+  - [Verify a release with SLSA provenance](#verify-a-release-with-slsa-provenance)
+- [Comparison](#comparison)
+  - [Where each tool is the right answer](#where-each-tool-is-the-right-answer)
+- [FAQ](#faq)
+- [Contributing](#contributing)
+- [Maintenance](#maintenance)
+- [License](#license)
+- [Maintainer](#maintainer)
+
 `pwned-deps` is a Python CLI that takes one or more developer lockfiles
 (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `requirements.txt`,
 `Pipfile.lock`, `poetry.lock`, `uv.lock`, `Cargo.lock`, `go.sum`,

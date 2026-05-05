@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang=en>
+<head>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1">
+<meta name=generator content="pwned-deps dashboard 1.0">
+<title>ACME Corp · supply-chain dashboard</title>
+<style>
+:root {
+  --fg: #0f172a; --muted: #64748b; --bg: #f8fafc; --card: #fff;
+  --border: #e2e8f0; --bad: #dc2626; --bad-bg: #fef2f2; --warn: #d97706;
+  --warn-bg: #fffbeb; --good: #16a34a; --good-bg: #f0fdf4;
+  --accent: #0369a1;
+}
+* { box-sizing: border-box; }
+body { font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+       margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+         color: #fff; padding: 2rem 2rem 1.5rem; }
+header h1 { margin: 0 0 .25rem; font-size: 1.6rem; letter-spacing: -.01em; }
+header .sub { color: #94a3b8; font-size: .9rem; }
+main { max-width: 1280px; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+h2 { font-size: 1.05rem; text-transform: uppercase; letter-spacing: .05em;
+     color: var(--muted); margin: 2rem 0 .75rem; font-weight: 600; }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 1rem; margin-top: -2.5rem; position: relative; z-index: 2; }
+.kpi { background: var(--card); border: 1px solid var(--border);
+       border-radius: 10px; padding: 1rem 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.kpi-num { font-size: 2rem; font-weight: 700; line-height: 1; letter-spacing: -.02em; }
+.kpi-lbl { color: var(--muted); font-size: .8rem; text-transform: uppercase;
+           letter-spacing: .05em; margin-top: .35rem; }
+.kpi-red .kpi-num { color: var(--bad); }
+.kpi-yellow .kpi-num { color: var(--warn); }
+.kpi-green .kpi-num { color: var(--good); }
+
+.t { width: 100%; border-collapse: collapse; background: var(--card);
+     border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+     font-size: .9rem; }
+.t th, .t td { padding: .55rem .85rem; text-align: left;
+               border-bottom: 1px solid var(--border); vertical-align: top; }
+.t th { background: #f1f5f9; font-weight: 600; color: var(--muted);
+        text-transform: uppercase; font-size: .72rem; letter-spacing: .04em; }
+.t tr:last-child td { border-bottom: 0; }
+.t tr:hover td { background: #f8fafc; }
+.t .num { text-align: right; font-variant-numeric: tabular-nums; }
+.t code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: .85em; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; }
+.t .bad { color: var(--bad); font-weight: 600; }
+.t .warn { color: var(--warn); font-weight: 600; }
+.t a { color: var(--accent); text-decoration: none; font-size: .8em; }
+.t a:hover { text-decoration: underline; }
+
+.pill { display: inline-block; padding: 2px 8px; border-radius: 99px;
+        font-size: .72rem; font-weight: 700; letter-spacing: .03em; }
+.pill-bad { background: var(--bad-bg); color: var(--bad); }
+.pill-warn { background: var(--warn-bg); color: var(--warn); }
+.pill-neutral { background: #f1f5f9; color: var(--muted); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 1.25rem; margin: .75rem 0; }
+.filter-group { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.filter-label { color: var(--muted); font-size: .8rem; font-weight: 600;
+                text-transform: uppercase; letter-spacing: .04em; }
+.chip { background: var(--card); border: 1px solid var(--border); padding: 3px 10px;
+        border-radius: 99px; cursor: pointer; font-size: .78rem; color: var(--fg);
+        font-family: inherit; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chip-active:hover { color: #fff; }
+
+.empty { padding: 2rem; text-align: center; color: var(--muted);
+         background: var(--card); border: 1px dashed var(--border); border-radius: 8px; }
+footer { color: var(--muted); font-size: .8rem; text-align: center;
+         padding: 1rem; border-top: 1px solid var(--border); }
+footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>ACME Corp · supply-chain dashboard</h1>
+  <div class=sub>Generated 2026-05-05 02:26 UTC · static report · no telemetry</div>
+</header>
+<main>
+  <div class=kpis><div class="kpi kpi-neutral"><div class="kpi-num">5</div><div class="kpi-lbl">Scans</div></div><div class="kpi kpi-neutral"><div class="kpi-num">15</div><div class="kpi-lbl">Packages scanned</div></div><div class="kpi kpi-red"><div class="kpi-num">4</div><div class="kpi-lbl">Compromised</div></div><div class="kpi kpi-green"><div class="kpi-num">0</div><div class="kpi-lbl">HIGH/CRITICAL CVEs</div></div><div class="kpi kpi-neutral"><div class="kpi-num">1</div><div class="kpi-lbl">Ecosystems</div></div><div class="kpi kpi-green"><div class="kpi-num">0</div><div class="kpi-lbl">Parse errors</div></div></div>
+
+  <h2>Scan sources</h2>
+  <table class=t><thead><tr><th>Source</th><th>Tool</th><th class=num>Lockfiles</th><th class=num>Packages</th><th class=num>MAL</th><th class=num>HIGH/CRIT</th></tr></thead><tbody><tr><td><code>/tmp/pd-scans/repo-cap.json</code></td><td>0.1.0</td><td class=num>1</td><td class=num>1</td><td class='num bad'>2</td><td class='num '>0</td></tr><tr><td><code>/tmp/pd-scans/repo-java-svc.json</code></td><td>0.1.0</td><td class=num>1</td><td class=num>3</td><td class='num '>0</td><td class='num '>0</td></tr><tr><td><code>/tmp/pd-scans/repo-legacy-node.json</code></td><td>0.1.0</td><td class=num>1</td><td class=num>2</td><td class='num bad'>2</td><td class='num '>0</td></tr><tr><td><code>/tmp/pd-scans/repo-ml-pipeline.json</code></td><td>0.1.0</td><td class=num>1</td><td class=num>8</td><td class='num '>0</td><td class='num '>0</td></tr><tr><td><code>/tmp/pd-scans/repo-website.json</code></td><td>0.1.0</td><td class=num>1</td><td class=num>1</td><td class='num '>0</td><td class='num '>0</td></tr></tbody></table>
+
+  <h2>Campaign rollup</h2>
+  <table class=t><thead><tr><th>Advisory</th><th>Kind</th><th>Campaign</th><th>Ecosystems</th><th class=num>Hits</th><th class=num>Sources</th></tr></thead><tbody><tr><td><code>EXTRA-2018-0001</code></td><td><span class='pill pill-bad'>MALICIOUS</span></td><td>event-stream / flatmap-stream credential stealer</td><td>npm</td><td class=num>2</td><td class=num>1</td></tr><tr><td><code>EXTRA-2026-0001</code></td><td><span class='pill pill-bad'>MALICIOUS</span></td><td>Mini Shai-Hulud (SAP CAP)</td><td>npm</td><td class=num>1</td><td class=num>1</td></tr><tr><td><code>MAL-2026-3178</code></td><td><span class='pill pill-bad'>MALICIOUS</span></td><td></td><td>npm</td><td class=num>1</td><td class=num>1</td></tr></tbody></table>
+
+  <h2>All findings</h2>
+  
+<div class=filters>
+  <div class=filter-group>
+    <span class=filter-label>Severity:</span><button class="chip chip-active" data-filter="sev" data-value="">all</button><button class="chip" data-filter="sev" data-value="CRITICAL">CRITICAL</button><button class="chip" data-filter="sev" data-value="MALICIOUS">MALICIOUS</button>
+  </div>
+  <div class=filter-group>
+    <span class=filter-label>Ecosystem:</span><button class="chip chip-active" data-filter="eco" data-value="">all</button><button class="chip" data-filter="eco" data-value="npm">npm</button>
+  </div>
+</div>
+<table class='t findings-table'><thead><tr><th>Kind</th><th>Package</th><th>Advisory</th><th>Campaign</th><th>Lockfile</th><th>Source</th></tr></thead><tbody><tr data-eco="npm" data-sev="MALICIOUS"><td><span class='pill pill-bad'>MALICIOUS</span></td><td><code>npm:@cap-js/sqlite@2.2.2</code></td><td><code>EXTRA-2026-0001</code> <a href="https://thehackernews.com/2026/04/sap-npm-packages-compromised-by-mini.html" rel="noopener noreferrer" target="_blank">[ref]</a> <a href="https://securitybridge.com/blog/a-mini-shai-hulud-has-appeared-when-the-npm-supply-chain-reaches-into-sap/" rel="noopener noreferrer" target="_blank">[ref]</a> <a href="https://www.wiz.io/blog/mini-shai-hulud-supply-chain-sap-npm" rel="noopener noreferrer" target="_blank">[ref]</a></td><td>Mini Shai-Hulud (SAP CAP)</td><td><code>tests/fixtures/npm/mini-shaihulud.lock.json</code></td><td><code>/tmp/pd-scans/repo-cap.json</code></td></tr><tr data-eco="npm" data-sev="MALICIOUS"><td><span class='pill pill-bad'>MALICIOUS</span></td><td><code>npm:@cap-js/sqlite@2.2.2</code></td><td><code>MAL-2026-3178</code> <a href="https://safedep.io/mini-shai-hulud-and-sap-compromise/" rel="noopener noreferrer" target="_blank">[ref]</a> <a href="https://github.com/advisories/GHSA-2h7r-x9v2-q52f" rel="noopener noreferrer" target="_blank">[ref]</a></td><td></td><td><code>tests/fixtures/npm/mini-shaihulud.lock.json</code></td><td><code>/tmp/pd-scans/repo-cap.json</code></td></tr><tr data-eco="npm" data-sev="MALICIOUS"><td><span class='pill pill-bad'>MALICIOUS</span></td><td><code>npm:event-stream@3.3.6</code></td><td><code>EXTRA-2018-0001</code> <a href="https://github.com/dominictarr/event-stream/issues/116" rel="noopener noreferrer" target="_blank">[ref]</a> <a href="https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident" rel="noopener noreferrer" target="_blank">[ref]</a> <a href="https://snyk.io/blog/malicious-code-found-in-npm-package-event-stream/" rel="noopener noreferrer" target="_blank">[ref]</a></td><td>event-stream / flatmap-stream credential stealer</td><td><code>tests/fixtures/npm/historic-event-stream.lock.json</code></td><td><code>/tmp/pd-scans/repo-legacy-node.json</code></td></tr><tr data-eco="npm" data-sev="MALICIOUS"><td><span class='pill pill-bad'>MALICIOUS</span></td><td><code>npm:flatmap-stream@0.1.1</code></td><td><code>EXTRA-2018-0001</code> <a href="https://github.com/dominictarr/event-stream/issues/116" rel="noopener noreferrer" target="_blank">[ref]</a> <a href="https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident" rel="noopener noreferrer" target="_blank">[ref]</a> <a href="https://snyk.io/blog/malicious-code-found-in-npm-package-event-stream/" rel="noopener noreferrer" target="_blank">[ref]</a></td><td>event-stream / flatmap-stream credential stealer</td><td><code>tests/fixtures/npm/historic-event-stream.lock.json</code></td><td><code>/tmp/pd-scans/repo-legacy-node.json</code></td></tr></tbody></table>
+
+<script>
+(() => {
+  const state = { sev: '', eco: '' };
+  const apply = () => {
+    document.querySelectorAll('.findings-table tbody tr').forEach(tr => {
+      const sevOk = !state.sev || tr.dataset.sev === state.sev
+        || (state.sev === 'MALICIOUS' && tr.dataset.sev === 'MALICIOUS');
+      const ecoOk = !state.eco || tr.dataset.eco === state.eco;
+      tr.style.display = (sevOk && ecoOk) ? '' : 'none';
+    });
+  };
+  document.querySelectorAll('.chip').forEach(b => {
+    b.addEventListener('click', () => {
+      const f = b.dataset.filter, v = b.dataset.value;
+      state[f] = v;
+      document.querySelectorAll(`.chip[data-filter="${f}"]`).forEach(x =>
+        x.classList.toggle('chip-active', x.dataset.value === v));
+      apply();
+    });
+  });
+})();
+</script>
+
+
+</main>
+<footer>
+  Generated by <a href="https://github.com/mkbhardwas12/pwned-deps">pwned-deps</a>
+  · static HTML, no JS dependencies, no external assets, no analytics.
+</footer>
+</body>
+</html>

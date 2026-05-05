@@ -33,7 +33,7 @@ published malicious versions.
 | **Inputs**            | Lockfiles (npm, PyPI, Maven, Cargo, Go, RubyGems) — never source, never tarballs |
 | **Data sources**      | [OSV.dev](https://osv.dev) public API + curated `extras.json` campaign feed (signed, sigstore + Rekor) |
 | **Outputs**           | Coloured terminal report, JSON, SARIF (GitHub Code Scanning) |
-| **Three commands**    | `pwned-deps check <lockfile>` (one-shot scan) · `pwned-deps audit-repo <dir>` (forensic file-IoC scan) · `pwned-deps watch <lockfile> --baseline <file>` (daily baseline + delta alert) |
+| **Four commands**     | `pwned-deps check <lockfile>` (one-shot scan) · `pwned-deps audit-repo <dir>` (forensic file-IoC scan) · `pwned-deps watch <lockfile> --baseline <file>` (daily baseline + delta alert) · `pwned-deps report <scans> -o <html>` (org-wide HTML dashboard) |
 | **Failure mode**      | Exit `1` on confirmed compromise — wire that to your CI gate |
 | **Network footprint** | One host: `api.osv.dev`. No telemetry. Offline mode supported. |
 | **Trust model**       | Apache-2.0, SLSA L3 build provenance, OIDC-only PyPI publishing, locked container CI |
@@ -463,6 +463,32 @@ pipes the JSON through [`tools/pr_comment.py`](tools/pr_comment.py)
 to find and update the prior comment by a magic marker. Comment-only
 mode (don't fail the build) is a one-line tweak documented in the
 example.
+
+### Static HTML dashboard (org-wide visibility)
+
+For platform/security teams that need an aggregate view across
+many repos, `pwned-deps report` consumes one or more JSON scan files
+(typically CI artifacts) and emits a single self-contained HTML
+dashboard:
+
+```bash
+# Each repo's CI uploads scan.json as an artifact; collect them, then:
+pwned-deps report scans/*.json -o dashboard.html --title "ACME · supply chain"
+```
+
+![dashboard preview](docs/assets/demo-dashboard.png)
+
+The HTML file is self-contained — inline CSS, no external assets,
+no telemetry, no JavaScript dependencies (one tiny vanilla-JS filter
+chip handler, no framework). Drop into S3, GitHub Pages, or `open`
+locally. Zero infrastructure to host the org dashboard.
+
+What you get: top-level KPIs (scans, packages, MALICIOUS hits,
+HIGH/CRITICAL CVEs), a per-source scans table, a campaign rollup
+(same advisory hitting >1 repo = high-priority cross-org incident),
+and a filterable findings table. Every campaign-supplied string is
+HTML-escaped at render time, and only `http(s)://` reference URLs
+become clickable.
 
 ### pre-commit
 

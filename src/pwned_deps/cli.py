@@ -230,6 +230,49 @@ def update(cache_path: Path | None) -> None:
     click.echo(f"cache initialised at {target}")
 
 
+@main.command(name="report")
+@click.argument(
+    "scan_files",
+    nargs=-1,
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=Path("pwned-deps-report.html"),
+    show_default=True,
+    help="Where to write the HTML dashboard.",
+)
+@click.option(
+    "--title",
+    default="pwned-deps dashboard",
+    show_default=True,
+    help="Page title shown in the header + browser tab.",
+)
+def report_cmd(scan_files: tuple[Path, ...], output: Path, title: str) -> None:
+    """Render a static HTML dashboard from one or more JSON scan files.
+
+    Aggregates KPIs, per-campaign rollup, and a filterable findings
+    table across every supplied scan. Useful for org-wide multi-repo
+    visibility from CI artifacts:
+
+        pwned-deps check . --format json > scan.json   # in each repo
+        pwned-deps report scans/*.json -o dashboard.html
+
+    The output is a single self-contained HTML file (inline CSS, no
+    external assets, no telemetry, no server). Drop into S3,
+    GitHub Pages, or open it locally.
+    """
+    from pwned_deps.report.dashboard import render_dashboard_from_paths
+
+    html = render_dashboard_from_paths(scan_files, title=title)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(html, encoding="utf-8")
+    click.echo(f"wrote {output} ({len(scan_files)} scan file(s))")
+
+
 @main.command(name="version")
 def version_cmd() -> None:
     """Print the pwned-deps version."""

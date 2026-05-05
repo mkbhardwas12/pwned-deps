@@ -1,6 +1,10 @@
 # pwned-deps
 
-> **Drop your lockfile in, find out if you're pwned.**
+> **Drop your lockfile in. Get a red/green answer in 5 seconds.**
+>
+> A multi-ecosystem scanner for compromised package versions —
+> account hijacks, typosquats, dependency-confusion, retroactively
+> trojanised releases — across npm, PyPI, Maven, Cargo, Go, RubyGems.
 
 <!-- TODO(logo): place a 256x256 PNG at docs/logo.png and reference it here. -->
 <!-- TODO(demo): record with `vhs demo.tape`, commit the resulting docs/demo.gif. -->
@@ -112,23 +116,60 @@ sequenceDiagram
 
 ## Why this exists
 
-When a supply-chain attack on npm/PyPI/Cargo lands, the first thing
-every developer asks is _"did I install one of those bad versions?"_
-Today the answer is buried across vendor blogs, GHSA, OSV, the
-package's own security tab, and the news article. There is no single
-tool that takes a lockfile and gives an instant red/green answer with
-the install timestamp.
+Supply-chain compromises don't take a year off. Roughly every other
+month somebody's npm/PyPI account gets hijacked, a maintainer hands
+publish rights to a stranger, or a typosquat gets coin-mined into
+production. The first 30 minutes of every incident is the same panic:
 
-The launch peg is **Mini Shai-Hulud (April 29, 2026)** — four
-SAP-ecosystem npm packages (`@cap-js/sqlite@2.2.2`,
-`@cap-js/postgres@2.2.2`, `@cap-js/db-service@2.10.1`, `mbt@1.2.48`)
-were briefly poisoned with a credential-stealing preinstall script.
-Anyone whose CI ran `npm install` during the ~2–4 h window pulled a
-payload that exfiltrated GitHub/npm/AWS/Azure/GCP/K8s creds. Confirming
-whether _your_ pipeline ran during that window today requires
-manual log-diving. `pwned-deps` is the 5-second answer.
+> **"Did *we* install one of those bad versions? Where? When? Is it
+> still in our caches and container images?"**
 
-Sources for the launch campaign data, all named research blogs:
+The data to answer that already exists — across OSV, GHSA, vendor
+blogs, news writeups, and the affected package's GitHub issues — but
+nobody has time to assemble it under fire. `pwned-deps` does that
+assembly upfront: a curated, signed feed of named campaigns plus the
+OSV firehose, behind a single command that reads a lockfile and
+returns red/green in seconds.
+
+### Campaigns the bundled feed already covers
+
+These are the named, well-documented incidents the tool flags out of
+the box on a fresh `pipx install` — no network required after the
+first cache fill, and the curated entries carry IoCs and remediation
+steps that OSV's MAL-* records typically don't:
+
+| ID                | Year | Ecosystem | Campaign                                                      |
+|-------------------|------|-----------|---------------------------------------------------------------|
+| EXTRA-2018-0001   | 2018 | npm       | event-stream / flatmap-stream (Copay wallet target)           |
+| EXTRA-2018-0002   | 2018 | npm       | eslint-scope token-stealer worm                               |
+| EXTRA-2021-0001   | 2021 | npm       | ua-parser-js account hijack (coin miner + Windows stealer)    |
+| EXTRA-2021-0002   | 2021 | npm       | coa account hijack (DanaBot family)                           |
+| EXTRA-2021-0003   | 2021 | npm       | rc account hijack (DanaBot family)                            |
+| EXTRA-2022-0001   | 2022 | PyPI      | ctx PyPI account takeover (env-var exfil)                     |
+| EXTRA-2022-0002   | 2022 | npm       | node-ipc protestware / peacenotwar (CVE-2022-23812)           |
+| EXTRA-2022-0003   | 2022 | PyPI      | PyTorch nightly torchtriton dependency-confusion              |
+| EXTRA-2026-0001   | 2026 | npm       | Mini Shai-Hulud — SAP CAP packages (launch peg)               |
+| EXTRA-2026-0002   | 2026 | npm/PyPI  | Mini Shai-Hulud follow-on (intercom-client + lightning)       |
+
+This is the curated feed only — every advisory in OSV's public
+database is also queried automatically. Each entry above is sourced
+from at least one named research blog (full citations live in
+`extras.json`); adding a new campaign is a five-minute PR.
+
+### A worked example: Mini Shai-Hulud (April 29, 2026)
+
+Used here because the IoC data is unusually rich (Wiz published every
+malicious tarball SHA-256 plus the IDE-persistence files), making it
+the cleanest demo of the audit-repo subcommand. **Four SAP-ecosystem
+npm packages** (`@cap-js/sqlite@2.2.2`, `@cap-js/postgres@2.2.2`,
+`@cap-js/db-service@2.10.1`, `mbt@1.2.48`) were briefly poisoned with
+a credential-stealing preinstall script. Anyone whose CI ran
+`npm install` during the ~2-4 h window pulled a payload that
+exfiltrated GitHub/npm/AWS/Azure/GCP/K8s creds. Confirming whether
+your pipeline ran during that window manually requires log-diving;
+`pwned-deps` is the 5-second answer.
+
+Sources, all named research blogs:
 [The Hacker News](https://thehackernews.com/2026/04/sap-npm-packages-compromised-by-mini.html),
 [SecurityBridge](https://securitybridge.com/blog/a-mini-shai-hulud-has-appeared-when-the-npm-supply-chain-reaches-into-sap/),
 [Wiz](https://www.wiz.io/blog/mini-shai-hulud-supply-chain-sap-npm).
@@ -193,10 +234,12 @@ version, so they're surfaced as a warning rather than skipped silently.
 
 ## Real-world scenarios this is built for
 
-These are the questions developers and security teams actually ask
-in the first hour of a published supply-chain incident. The launch
-campaign — [Mini Shai-Hulud (Apr 29, 2026)](https://securitybridge.com/blog/a-mini-shai-hulud-has-appeared-when-the-npm-supply-chain-reaches-into-sap/) — is the worked example, but the pattern
-recurs every few months.
+These are the questions developers and security teams actually ask in
+the first hour of a published supply-chain incident — and they recur
+every few months across every ecosystem (see the campaign table
+above). The Mini Shai-Hulud (Apr 29, 2026) example below is used
+because Wiz published unusually rich IoC data for it; the same
+workflow applies to any campaign in the feed.
 
 **"Did *we* run `npm install` during the 2-hour window?"**
 Pipe every lockfile in the org through `pwned-deps check`. Exit 1

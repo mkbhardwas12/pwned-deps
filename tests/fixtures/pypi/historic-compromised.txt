@@ -1,0 +1,8 @@
+# Historic compromised PyPI campaigns — fixture for pwned-deps regression tests.
+# All values are well-documented public incidents; no executable code.
+
+# EXTRA-2022-0001: ctx account takeover (May 2022)
+ctx==0.2.2
+
+# EXTRA-2022-0003: PyTorch nightly torchtriton dep-confusion (Dec 2022)
+torchtriton==0.0.1

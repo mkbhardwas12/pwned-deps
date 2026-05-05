@@ -200,6 +200,143 @@
       ]
     },
     {
+      "id": "EXTRA-2023-0001",
+      "name": "@ledgerhq/connect-kit Web3 wallet drainer",
+      "summary": "On December 14, 2023 a former Ledger employee was phished and their npm credentials used to publish trojanised versions of `@ledgerhq/connect-kit` (1.1.5, 1.1.6, 1.1.7). The injected JavaScript was a wallet drainer that prompted users to approve malicious transactions on any dApp that loaded the library — Sushi, Zapper, Revoke.cash, and Phantom were among the affected dApps. ~$610k drained before Ledger and npm pulled the versions ~5 hours after publication.",
+      "references": [
+        "https://www.ledger.com/blog/a-message-from-pascal-gauthier-chairman-ceo-of-ledger-regarding-ledger-connect-kit",
+        "https://blog.sonatype.com/sonatype-spots-malicious-versions-of-popular-ledgerhq-libraries-on-npm",
+        "https://socket.dev/blog/ledger-supply-chain-attack-postmortem"
+      ],
+      "ecosystem": "npm",
+      "packages": [
+        {"name": "@ledgerhq/connect-kit", "versions": ["1.1.5", "1.1.6", "1.1.7"]}
+      ],
+      "exposure_window": ["2023-12-14T13:31:00Z", "2023-12-14T18:35:00Z"],
+      "_exposure_window_note": "Times derived from Ledger's official postmortem (CET converted to UTC). Sources are consistent on the ~5-hour exposure window.",
+      "iocs": [
+        "Browser-side wallet-drainer prompt: 'Connect with Ledger' modal that asks the user to sign an arbitrary transaction (the legitimate library never does this).",
+        "Outbound traffic to drainer infrastructure (rotating; Sonatype documented domains at the time of analysis).",
+        "Any dApp bundle built between 2023-12-14 13:31 UTC and 18:35 UTC that pulled connect-kit via caret/tilde range and shipped to end users."
+      ],
+      "actions": [
+        "If you operate a dApp that bundles @ledgerhq/connect-kit and shipped a build during the window, advise users to revoke any approvals signed during that period (revoke.cash).",
+        "Pin Web3 SDK dependencies; do not allow caret upgrades on wallet-connector libraries.",
+        "Audit npm tokens on any dev workstation that had publish rights to a high-traffic Web3 package — phishing of maintainers is the dominant attack pattern in this ecosystem."
+      ]
+    },
+    {
+      "id": "EXTRA-2024-0001",
+      "name": "xz-utils / liblzma backdoor (CVE-2024-3094)",
+      "summary": "In March 2024 a multi-year supply-chain operation was uncovered in `xz-utils` (the upstream project behind liblzma). A maintainer (`Jia Tan`) who had spent ~2 years gaining trust planted a backdoor in releases 5.6.0 (Feb 24, 2024) and 5.6.1 (Mar 9, 2024) that, when liblzma was linked into sshd via a downstream patch, allowed remote code execution gated on an attacker's ed25519 key. Caught on Mar 29, 2024 by Andres Freund noticing 500ms latency in sshd benchmarks. CVSS 10.0; CISA emergency directive.",
+      "references": [
+        "https://www.openwall.com/lists/oss-security/2024/03/29/4",
+        "https://research.swtch.com/xz-timeline",
+        "https://nvd.nist.gov/vuln/detail/CVE-2024-3094",
+        "https://www.cisa.gov/news-events/alerts/2024/03/29/reported-supply-chain-compromise-affecting-xz-utils-data-compression-library-cve-2024-3094"
+      ],
+      "ecosystem": "Linux",
+      "packages": [
+        {"name": "xz", "versions": ["5.6.0", "5.6.1"]},
+        {"name": "xz-utils", "versions": ["5.6.0", "5.6.1"]},
+        {"name": "liblzma", "versions": ["5.6.0", "5.6.1"]}
+      ],
+      "exposure_window": ["2024-02-24T00:00:00Z", "2024-03-29T23:59:59Z"],
+      "_ecosystem_note": "xz-utils is a system package, not a typical lockfile entry. Included in the curated feed for completeness — pwned-deps will not match a Debian/Alpine package against an npm/PyPI lockfile, but the entry serves as a reference and is matched if a Cargo.lock or similar pulls a Rust wrapper that pins the affected versions.",
+      "iocs": [
+        "sshd binary linked against liblzma exhibiting ~500ms additional latency on connection (Andres Freund's original signal).",
+        "Backdoor activation requires a specific ed25519 public key in the SSH client cert — Jia Tan's key, published in the Openwall disclosure.",
+        "Build-time payload smuggled in test files: tests/files/bad-3-corrupt_lzma2.xz and tests/files/good-large_compressed.lzma in the release tarballs (NOT in the public git repo) of 5.6.0 / 5.6.1."
+      ],
+      "actions": [
+        "Downgrade to xz 5.4.x on any host that ever installed 5.6.0 or 5.6.1 (Debian sid, Fedora 40 beta, openSUSE Tumbleweed, Kali, Arch were the primary distros affected).",
+        "Audit sshd for the backdoor presence using the published yara/sigstore detection scripts (linked from the CISA alert).",
+        "Treat the host as compromised if 5.6.0/5.6.1 was running with public sshd exposure — no remediation short of re-imaging is fully verified."
+      ]
+    },
+    {
+      "id": "EXTRA-2024-0002",
+      "name": "@lottiefiles/lottie-player crypto drainer",
+      "summary": "On October 30-31, 2024 the npm package `@lottiefiles/lottie-player` (used by thousands of websites to render Lottie animations) was compromised via a maintainer's leaked GitHub token. Versions 2.0.5, 2.0.6, 2.0.7 contained injected JavaScript that displayed a wallet-connection prompt on any page that loaded the library, attempting to drain crypto wallets. Detected within ~6 hours; LottieFiles rotated credentials and pulled the versions.",
+      "references": [
+        "https://blog.lottiefiles.com/2024/10/lottie-player-incident-postmortem/",
+        "https://socket.dev/blog/lottie-player-supply-chain-attack",
+        "https://www.bleepingcomputer.com/news/security/supply-chain-attack-hits-popular-lottie-player-web3-libraries/"
+      ],
+      "ecosystem": "npm",
+      "packages": [
+        {"name": "@lottiefiles/lottie-player", "versions": ["2.0.5", "2.0.6", "2.0.7"]}
+      ],
+      "exposure_window": ["2024-10-30T22:00:00Z", "2024-10-31T04:00:00Z"],
+      "_exposure_window_note": "Conservative ~6-hour window from LottieFiles postmortem and Socket.dev timeline; exact UTC stamps not in the cited sources.",
+      "iocs": [
+        "Wallet-connection prompt appearing on any page that uses Lottie animations (the legitimate library never prompts for wallet access).",
+        "Outbound traffic to drainer infrastructure documented by Socket.dev at the time of analysis.",
+        "Any CDN-pinned reference to lottie-player@2.0.5/2.0.6/2.0.7 (popular pattern: <script src='https://unpkg.com/@lottiefiles/lottie-player@latest'>) — sites using `@latest` were exposed even without their own lockfile change."
+      ],
+      "actions": [
+        "Pin lottie-player to <= 2.0.4 or jump past the compromised range; never use `@latest` on a CDN-served script for Web3-adjacent sites.",
+        "If your site shipped during the window, advise users to revoke approvals signed during that period.",
+        "Same maintainer-token-hygiene lessons as EXTRA-2023-0001."
+      ]
+    },
+    {
+      "id": "EXTRA-2025-0001",
+      "name": "tj-actions/changed-files retroactive commit poisoning (CVE-2025-30066)",
+      "summary": "On March 14, 2025 the popular GitHub Action `tj-actions/changed-files` (~23k repos using it) was retroactively compromised — every existing tag (v1 through v45.0.7) was force-updated to point at a new commit that injected a Python script extracting CI secrets from the runner's memory and printing them to the workflow log. Anyone consuming the action via a mutable tag (e.g. `@v45`) ran the malicious code on their next workflow run. Detected within ~24 hours.",
+      "references": [
+        "https://github.com/tj-actions/changed-files/issues/2464",
+        "https://www.stepsecurity.io/blog/harden-runner-detection-tj-actions-changed-files-action-is-compromised",
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-30066",
+        "https://www.wiz.io/blog/tj-actions-changed-files-supply-chain-attack-cve-2025-30066"
+      ],
+      "ecosystem": "GitHub Actions",
+      "packages": [
+        {"name": "tj-actions/changed-files", "versions": ["v1", "v2", "v3", "v4", "v5", "v44", "v45", "v45.0.7"]}
+      ],
+      "_packages_note": "GitHub Actions are not a lockfile concept. Versions listed are the mutable tags that were force-updated to point at the malicious commit; pinning by SHA is the correct mitigation. pwned-deps will not directly scan a workflow file in V1 but will match if the action reference appears in a relevant manifest fixture.",
+      "exposure_window": ["2025-03-14T16:00:00Z", "2025-03-15T16:00:00Z"],
+      "_exposure_window_note": "Conservative ~24-hour window from StepSecurity disclosure timeline; exact removal time not pinned in the cited sources.",
+      "iocs": [
+        "Workflow logs containing base64-encoded blobs printed by the malicious step (the payload's primary exfiltration channel was the workflow log itself, so secrets were leaked publicly on public repos).",
+        "Any workflow run between Mar 14 and Mar 15 2025 that referenced tj-actions/changed-files via a tag (not a SHA).",
+        "GitHub Actions runner memory inspection script: a Python script written to /tmp on the runner."
+      ],
+      "actions": [
+        "Audit all public workflow logs in the affected window — secrets printed to a public log MUST be assumed leaked, no exceptions.",
+        "Rotate every secret used in any workflow that referenced tj-actions/changed-files between Mar 14 and Mar 15 2025.",
+        "Switch every third-party GitHub Action reference from a tag (`@v45`) to a pinned commit SHA (`@a1b2c3...`). This is the only durable mitigation against retroactive tag poisoning."
+      ]
+    },
+    {
+      "id": "EXTRA-2025-0002",
+      "name": "Shai-Hulud original (180+ npm packages, self-replicating worm)",
+      "summary": "In September 2025 a self-replicating worm dubbed 'Shai-Hulud' compromised 180+ npm packages including `@ctrl/tinycolor` (~2M weekly downloads), `ngx-bootstrap`, and dozens of CrowdStrike-published utility packages. The worm's payload stole npm tokens from any host that installed an infected package and used those tokens to immediately republish further packages — a true worm in the npm ecosystem. Named after the Dune sandworms by the security research community. The April 2026 'Mini Shai-Hulud' incident (EXTRA-2026-0001) is named for tactical similarity.",
+      "references": [
+        "https://blog.npmjs.org/post/2025-09-shai-hulud-incident-report",
+        "https://socket.dev/blog/shai-hulud-self-replicating-worm-npm",
+        "https://www.wiz.io/blog/shai-hulud-npm-worm-analysis"
+      ],
+      "ecosystem": "npm",
+      "packages": [
+        {"name": "@ctrl/tinycolor", "versions": ["4.1.1", "4.1.2"]},
+        {"name": "ngx-bootstrap", "versions": ["18.1.4"]}
+      ],
+      "_packages_note": "Only two of the most-downloaded affected packages are pinned here with version-precise data confirmed by the cited sources. The full list of 180+ packages is documented in the npmjs.org incident report; add additional entries here as named-blog citations confirm specific (name, version) pairs. TODO(expand-package-list): backfill the remaining packages once a consolidated, citable list is available.",
+      "exposure_window": ["2025-09-15T00:00:00Z", "2025-09-17T23:59:59Z"],
+      "_exposure_window_note": "Conservative whole-day window covering the worm's active propagation period per the npmjs.org incident report. Individual package republish times vary.",
+      "iocs": [
+        "Stolen npm tokens used to republish further packages — any token issued before Sept 17 2025 should be considered for rotation if it was on a host that ran `npm install` during the window.",
+        "Bundled.js artifact in compromised package tarballs containing the worm payload (per Socket.dev analysis).",
+        "Outbound traffic to documented exfiltration endpoints (rotating; see Wiz analysis at time of incident)."
+      ],
+      "actions": [
+        "Rotate every npm token that was on any developer or CI host between Sept 15 and Sept 17 2025.",
+        "Audit your npm publishing history for unexpected releases authored by your account in that window.",
+        "Pin npm dependencies; do not allow caret/tilde upgrades on Angular / utility packages during a known active worm event."
+      ]
+    },
+    {
       "id": "EXTRA-2026-0001",
       "name": "Mini Shai-Hulud (SAP CAP)",
       "summary": "On April 29, 2026 four SAP-ecosystem npm packages (three @cap-js/* and the mbt build tool) were briefly poisoned with a credential-stealing preinstall script. Anyone whose CI ran `npm install` during the exposure window pulled a payload that exfiltrated GitHub/npm/cloud/Kubernetes secrets via attacker-created public repos.",

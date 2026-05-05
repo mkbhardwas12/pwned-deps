@@ -53,7 +53,7 @@ RUN_FLAGS_LOCKED := --rm --network none --read-only \
 # regenerating the lockfile and adding deps).
 RUN_FLAGS_DEV := --rm -it -v $(PWD):/work -w /work
 
-.PHONY: help build shell test verify-safety verify-safety-self-test lint release-rehearsal pin-base pin-deps clean
+.PHONY: help build shell test verify-safety verify-safety-self-test lint release-rehearsal smoke-local pin-base pin-deps clean
 
 help:
 	@echo "pwned-deps Makefile targets:"
@@ -120,6 +120,68 @@ release-rehearsal: verify-safety verify-safety-self-test lint test
 		echo "[rehearsal] dogfood exit $$rc (0=clean, 2=informational HIGH/CRITICAL)"
 	@rm -rf .rehearsal-venv .rehearsal-install-venv
 	@echo "[rehearsal] OK — safe to 'git tag v0.1.0 && git push origin v0.1.0'."
+
+# Fast pre-commit muscle-memory check. No docker, no network, no PyPI.
+# Verifies the *user-visible* CLI surface (check + audit-repo) actually
+# behaves the way the README promises, against the bundled fixtures and
+# against a synthetic file IoC. Run this any time you've touched the
+# CLI, the renderers, the feed, or the audit module.
+smoke-local:
+	@set -e; \
+		echo "[smoke] 1/7  pwned-deps version"; \
+		.venv/bin/pwned-deps version; \
+		echo ""; \
+		echo "[smoke] 2/7  check clean fixture (expect exit 0)"; \
+		set +e; .venv/bin/pwned-deps check tests/fixtures/npm/clean.lock.json --ci >/dev/null; rc=$$?; set -e; \
+		test $$rc -eq 0 || (echo "FAIL: clean fixture returned $$rc, want 0" && exit 1); \
+		echo "  ok (exit 0)"; \
+		echo ""; \
+		echo "[smoke] 3/7  check Mini Shai-Hulud npm fixture (expect exit 1)"; \
+		set +e; .venv/bin/pwned-deps check tests/fixtures/npm/mini-shaihulud.lock.json --ci >/dev/null; rc=$$?; set -e; \
+		test $$rc -eq 1 || (echo "FAIL: malicious fixture returned $$rc, want 1" && exit 1); \
+		echo "  ok (exit 1)"; \
+		echo ""; \
+		echo "[smoke] 4/7  check lightning PyPI fixture (expect exit 1)"; \
+		set +e; .venv/bin/pwned-deps check tests/fixtures/pypi/lightning-pinned.txt --ci >/dev/null; rc=$$?; set -e; \
+		test $$rc -eq 1 || (echo "FAIL: lightning fixture returned $$rc, want 1" && exit 1); \
+		echo "  ok (exit 1)"; \
+		echo ""; \
+		echo "[smoke] 5/7  audit-repo on workspace (expect exit 0, CLEAN)"; \
+		set +e; out=$$(.venv/bin/pwned-deps audit-repo . 2>&1); rc=$$?; set -e; \
+		test $$rc -eq 0 || (echo "FAIL: audit-repo workspace returned $$rc, want 0" && echo "$$out" && exit 1); \
+		echo "$$out" | grep -q "CLEAN" || (echo "FAIL: missing CLEAN line" && echo "$$out" && exit 1); \
+		echo "  ok (CLEAN, exit 0)"; \
+		echo ""; \
+		echo "[smoke] 6/7  audit-repo with synthetic CONFIRMED hit (expect exit 1)"; \
+		tmp=$$(mktemp -d); \
+		mkdir -p "$$tmp/.claude"; \
+		printf 'fake-payload-for-local-smoke-test\n' > "$$tmp/.claude/execution.js"; \
+		hash=$$(shasum -a 256 "$$tmp/.claude/execution.js" | awk '{print $$1}'); \
+		printf '{"version":1,"campaigns":[{"id":"LOCAL-SMOKE","name":"local smoke","ecosystem":"npm","packages":[],"file_iocs":[{"path_hint":".claude/execution.js","sha256":"%s","description":"smoke"}]}]}\n' "$$hash" > "$$tmp/feed.json"; \
+		set +e; out=$$(.venv/bin/pwned-deps audit-repo "$$tmp" --feed-file "$$tmp/feed.json" 2>&1); rc=$$?; set -e; \
+		rm -rf "$$tmp"; \
+		test $$rc -eq 1 || (echo "FAIL: synthetic audit returned $$rc, want 1" && echo "$$out" && exit 1); \
+		echo "$$out" | grep -q "CONFIRMED" || (echo "FAIL: missing CONFIRMED line" && echo "$$out" && exit 1); \
+		echo "  ok (CONFIRMED, exit 1)"; \
+		echo ""; \
+		echo "[smoke] 7/7  install wheel into FRESH venv and re-run check"; \
+		test -f dist/pwned_deps-0.1.0-py3-none-any.whl || ( \
+			echo "  no wheel found; building..."; \
+			rm -rf dist build *.egg-info; \
+			python3 -m venv .smoke-build-venv; \
+			.smoke-build-venv/bin/pip install --quiet --upgrade pip build; \
+			.smoke-build-venv/bin/python -m build >/dev/null; \
+			rm -rf .smoke-build-venv; \
+		); \
+		python3 -m venv .smoke-install-venv; \
+		.smoke-install-venv/bin/pip install --quiet dist/pwned_deps-0.1.0-py3-none-any.whl; \
+		.smoke-install-venv/bin/pwned-deps version >/dev/null; \
+		set +e; .smoke-install-venv/bin/pwned-deps check tests/fixtures/npm/mini-shaihulud.lock.json --ci >/dev/null; rc=$$?; set -e; \
+		rm -rf .smoke-install-venv; \
+		test $$rc -eq 1 || (echo "FAIL: wheel-install check returned $$rc, want 1" && exit 1); \
+		echo "  ok (wheel install + check exit 1)"; \
+		echo ""; \
+		echo "[smoke] OK — all 7 user-visible behaviours match the README."
 
 pin-base:
 	@echo "Capturing current python:3.12-slim digest..."

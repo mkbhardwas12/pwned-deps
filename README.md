@@ -147,6 +147,27 @@ surfaces it next to every finding:
 No more cross-referencing three vendor blogs to assemble the
 remediation list.
 
+**"Did the second-stage payload actually land on a developer
+laptop or build runner?"**
+After the lockfile match, run the forensic file scanner:
+
+```bash
+pwned-deps audit-repo .
+pwned-deps audit-repo /path/to/checkout --format json
+```
+
+It walks the tree (skipping `node_modules`, `.git`, `.venv`, etc.),
+hashes every file under 50 MiB, and matches against the bundled
+file IoCs — SAP CAP `.claude/execution.js`, `.vscode/setup.mjs`,
+the shared `setup.mjs` dropper, and the IDE-persistence
+`settings.json` / `tasks.json` configurations. Exit codes:
+
+| Exit | Meaning                                                       |
+|-----:|---------------------------------------------------------------|
+|    0 | Clean                                                         |
+|    1 | At least one file's SHA-256 matches a known payload (CONFIRMED) |
+|    2 | A file sits at a known-persistence path but the bytes differ (SUSPECT — variant or modified) |
+
 **"What about the follow-on packages? They were on a different
 ecosystem."**
 `extras.json` supports per-package ecosystem overrides so a single

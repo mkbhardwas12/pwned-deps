@@ -27,6 +27,12 @@ from pwned_deps.advisory.cache import Cache, default_cache_path
 from pwned_deps.advisory.extras import ExtrasFeed
 from pwned_deps.advisory.matcher import Matcher
 from pwned_deps.advisory.osv_client import OsvClient
+from pwned_deps.audit.repo import (
+    DEFAULT_MAX_FILE_BYTES,
+    FileHit,
+    audit_repo,
+    collect_file_iocs,
+)
 from pwned_deps.parsers import cargo as cargo_parser
 from pwned_deps.parsers import gem as gem_parser
 from pwned_deps.parsers import go as go_parser
@@ -278,13 +284,6 @@ def audit_repo_cmd(
     second-stage payload landed on disk as IDE persistence.
     """
 
-    from pwned_deps.audit.repo import (
-        DEFAULT_MAX_FILE_BYTES,
-        FileHit,
-        audit_repo,
-        collect_file_iocs,
-    )
-
     extras = _load_extras(feed_file)
     iocs = collect_file_iocs(extras)
     cap = max_bytes if max_bytes is not None else DEFAULT_MAX_FILE_BYTES
@@ -295,6 +294,7 @@ def audit_repo_cmd(
 
         payload = {
             "schema_version": "1.0",
+            "command": "audit-repo",
             "tool": {"name": "pwned-deps", "version": pwned_deps.__version__},
             "root": str(path),
             "iocs_loaded": len(iocs),
@@ -316,12 +316,9 @@ def audit_repo_cmd(
     ctx.exit(0)
 
 
-def _hit_to_json(hit: object, *, root: Path) -> dict[str, object]:
+def _hit_to_json(hit: FileHit, *, root: Path) -> dict[str, object]:
     """Serialise a ``FileHit`` for JSON output."""
 
-    from pwned_deps.audit.repo import FileHit
-
-    assert isinstance(hit, FileHit)
     try:
         rel = str(hit.path.relative_to(root))
     except ValueError:
@@ -348,12 +345,10 @@ def _render_audit_text(
     root: Path,
     *,
     iocs_loaded: int,
-    hits: list[object],
+    hits: list[FileHit],
     ci: bool,
 ) -> None:
     """Compact text renderer for ``audit-repo``."""
-
-    from pwned_deps.audit.repo import FileHit
 
     click.echo(
         f"pwned-deps {pwned_deps.__version__} \u2014 auditing {root} "
@@ -370,14 +365,13 @@ def _render_audit_text(
         click.echo("CLEAN \u2014 no known-bad files found")
         return
 
-    confirmed = [h for h in hits if isinstance(h, FileHit) and h.is_confirmed]
-    suspect = [h for h in hits if isinstance(h, FileHit) and not h.is_confirmed]
+    confirmed = [h for h in hits if h.is_confirmed]
+    suspect = [h for h in hits if not h.is_confirmed]
 
     if confirmed:
         click.echo("")
         click.echo(f"CONFIRMED \u2014 {len(confirmed)} file(s) match a known-bad SHA-256")
         for h in confirmed:
-            assert isinstance(h, FileHit)
             try:
                 rel = str(h.path.relative_to(root))
             except ValueError:
@@ -396,7 +390,6 @@ def _render_audit_text(
             f"(content modified or new variant)"
         )
         for h in suspect:
-            assert isinstance(h, FileHit)
             try:
                 rel = str(h.path.relative_to(root))
             except ValueError:

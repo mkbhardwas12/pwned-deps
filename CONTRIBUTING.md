@@ -53,9 +53,16 @@ This is the highest-leverage contribution.
    - `references` — **at least one** named research blog or
      advisory (Wiz, SecurityBridge, Sophos, Snyk, GHSA, OSV).
      Name the source. Do not cite Twitter/X threads.
-   - `ecosystem` — one of `npm`, `pypi`, `crates`, `go`, `maven`,
-     `rubygems`.
+   - `ecosystem` — one of `npm`, `PyPI`, `crates.io`, `Go`,
+     `Maven`, `RubyGems`. **Case matters** — these are the
+     [OSV ecosystem strings](https://ossf.github.io/osv-schema/#defined-ecosystems)
+     and the matcher compares them case-sensitively. Lowercase
+     `pypi` will silently miss every PyPI lockfile.
    - `packages` — list of `{name, versions, source}` entries.
+     Each entry may also carry an optional per-package
+     `ecosystem` override (useful when a single campaign spans
+     multiple ecosystems — e.g. `EXTRA-2026-0002` covers
+     `intercom-client` on npm AND `lightning` on PyPI).
      **Do not fabricate version numbers.** If a source doesn't
      pin the version, use `TODO(precise-version)` and document
      which sources you checked.
@@ -64,6 +71,18 @@ This is the highest-leverage contribution.
      `_exposure_window_note`.
    - `actions` — remediation list. Concrete, imperative,
      credential-rotation-first.
+   - `iocs` *(optional)* — free-text indicators that don't fit
+     the lockfile model: rogue-repo signatures, commit-message
+     prefixes, C2 domains, IDE-persistence file paths. Rendered
+     under "additional indicators to hunt for" next to every
+     finding.
+   - `file_iocs` *(optional)* — structured on-disk IoCs the
+     `pwned-deps audit-repo` command matches against.
+     Each entry: `{path_hint?, sha256?, size_bytes?,
+     description, source}` — at least one of `path_hint` or
+     `sha256` must be present. Used for confirming the
+     second-stage payload landed as IDE persistence after the
+     lockfile was already remediated.
 2. Add a fixture lockfile that pins one of the affected versions
    under `tests/fixtures/<ecosystem>/`.
 3. Add or extend a test in `tests/` that scans the fixture and

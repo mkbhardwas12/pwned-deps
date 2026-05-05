@@ -31,6 +31,14 @@ Thumbs.db
 # Claude Code per-machine permissions (project-shared settings.json
 # would be checked in; this one is local).
 .claude/settings.local.json
+# Defence in depth: never commit any other Claude-Code local state.
+.claude/local/
+.claude/cache/
+
+# Codex / Copilot / Cursor local state (defence in depth)
+.cursor/
+.codex/
+.aider*
 
 # Local cache produced by `pwned-deps update` during dev runs
 .cache/

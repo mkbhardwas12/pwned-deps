@@ -9,6 +9,82 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Added
 
+- `pwned-deps audit-repo PATH` — forensic on-disk file scanner.
+  Walks a directory tree (skipping `node_modules`, `.git`, `.venv`,
+  build outputs, symlinks; 50 MiB per-file size cap) and matches
+  every file against the campaign feed's new `file_iocs[]` block by
+  SHA-256 and/or path-hint. Three match levels: `sha256+path`
+  (highest), `sha256` (confirmed payload, exit 1), `path` (suspect
+  variant or modified content, exit 2). Text + JSON output. JSON
+  carries `command: "audit-repo"` discriminator alongside
+  `schema_version: "1.0"`. New module: `pwned_deps.audit.repo`. 11
+  new tests using synthetic feeds + benign payloads (no real
+  malicious bytes — BUILD_BRIEF §2.8).
+- `extras.json` schema gained two optional fields:
+  - `iocs[]` (campaign-level free-text indicators — rogue-repo
+    signatures, commit-message prefixes, C2 domains).
+  - `file_iocs[]` (campaign-level structured on-disk IoCs:
+    `{path_hint, sha256, size_bytes, description, source}`).
+  Both are additive and backward-compatible — campaigns without
+  them work unchanged.
+- `EXTRA-2026-0001` (Mini Shai-Hulud SAP CAP) gained 6 IoC strings
+  and 7 `file_iocs` entries (the shared `setup.mjs` dropper at both
+  `.claude/` and `.vscode/` paths, three per-package
+  `execution.js` SHA-256s, `.claude/settings.json` Claude Code
+  SessionStart hook, `.vscode/tasks.json` `Environment Setup` task
+  with `runOn: folderOpen`). Hashes sourced from
+  [Wiz](https://www.wiz.io/blog/mini-shai-hulud-supply-chain-sap-npm).
+- Per-package `ecosystem` override in `extras.json` campaigns —
+  unblocks cross-ecosystem campaigns under one ID.
+- `tarball_sha256` (per-package) and `iocs[]` (per-campaign) are now
+  surfaced in both text and JSON reports next to every finding,
+  closing the gap SecurityBridge flagged: "use these for forensic
+  confirmation rather than relying on version strings alone."
+- `.github/workflows/sign-feed.yml` — keyless OIDC signs
+  `extras.json` on every push to `main` that touches it via
+  `sigstore-python`. Bundle attached as a 90-day workflow artifact;
+  the immutable Rekor log entry is the durable trust artifact. No
+  commit-back, no PAT, no force-push survivability problem. Verify
+  recipe: `python -m sigstore verify identity ...` documented in
+  [SECURITY.md](SECURITY.md).
+- `make release-rehearsal` target — chains verify-safety →
+  self-test → lint → host pytest → build → fresh-venv install →
+  dogfood. One command before tagging; refuses to print green if
+  any gate fails.
+- GitHub Action ([action.yml](action.yml)) — composite action with
+  `path` / `version` / `fail-on` (`compromised`/`any`/`never`) /
+  `output-sarif` / `upload-sarif` / `offline` inputs. SARIF →
+  GitHub Code Scanning out of the box.
+- pre-commit hook ([.pre-commit-hooks.yaml](.pre-commit-hooks.yaml))
+  with online + offline variants covering 13 lockfile patterns.
+- Repository hygiene: [SECURITY.md](SECURITY.md) (private vuln
+  reporting + 90-day disclosure + feed-verification recipe),
+  [CONTRIBUTING.md](CONTRIBUTING.md) (5-min add-a-campaign flow,
+  PoC handling rules, OSV-vocabulary clarification),
+  [.github/CODEOWNERS](.github/CODEOWNERS) (pins
+  `extras_data/`, release.yml, action.yml, Dockerfile.dev,
+  requirements.lock, base-image.lock to the maintainer),
+  bug + campaign issue templates, PR template with release
+  rehearsal checkbox.
+- `demo.tape` ([demo.tape](demo.tape)) — `vhs` script for
+  `docs/demo.gif`.
+- README "Real-world scenarios" section keyed on Mini Shai-Hulud
+  (5 victim-question framings + the `audit-repo` triage step).
+
+### Fixed
+
+- `lightning@2.6.2/2.6.3` (PyPI) was silently missed in
+  `EXTRA-2026-0002` because the campaign-level `ecosystem` was
+  `npm`. Per-package override now lets one campaign cover
+  `intercom-client` (npm) + `lightning` (PyPI). Regression test:
+  `test_lightning_pypi_is_caught_via_per_package_ecosystem_override`.
+- CONTRIBUTING.md previously listed ecosystem strings in lowercase
+  (`pypi`, `crates`, `go`, `maven`, `rubygems`) — these silently
+  fail the case-sensitive matcher. Documented the OSV vocabulary
+  explicitly to prevent future contributors hitting the same bug.
+
+## [Unreleased — earlier]
+
 - Step 0 — bootstrap. Imported `BUILD_BRIEF.md` as the single source of
   truth, `BUILD_LOG.md` for per-step plan + gate evidence, host-side
   ignore files (`.gitignore`, `.dockerignore`).

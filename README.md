@@ -413,6 +413,32 @@ the build on exit `1` (compromised package) by default. See
 Exit `1` fails the build. Exit `2` is HIGH/CRITICAL CVEs (no
 malicious hits) — you decide whether that fails or warns.
 
+### Sticky PR comment (the bot workflow)
+
+For pull requests, you usually want a *visible* signal next to the
+diff — not just a red check. Drop
+[`examples/workflows/pr-comment.yml`](examples/workflows/pr-comment.yml)
+into `.github/workflows/` and every PR that touches a lockfile gets a
+single sticky comment that gets *edited in place* on subsequent
+pushes (no comment spam):
+
+```text
+## pwned-deps scan
+
+🚨 **1 compromised package(s)** detected
+
+| Severity   | Package                       | Advisory          | Campaign                              |
+|------------|-------------------------------|-------------------|---------------------------------------|
+| MALICIOUS  | npm:event-stream@3.3.6        | EXTRA-2018-0001 ↗ | event-stream / flatmap-stream         |
+```
+
+Mechanism: the workflow runs `pwned-deps check . --format json`,
+pipes the JSON through [`tools/pr_comment.py`](tools/pr_comment.py)
+(stdlib-only, no extra deps), and uses `gh pr comment --edit-last`
+to find and update the prior comment by a magic marker. Comment-only
+mode (don't fail the build) is a one-line tweak documented in the
+example.
+
 ### pre-commit
 
 ```yaml

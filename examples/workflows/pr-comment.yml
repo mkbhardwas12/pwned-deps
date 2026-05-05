@@ -1,0 +1,85 @@
+# Example: post a sticky pwned-deps PR comment on every pull request that
+# touches a lockfile. Drop this file into `.github/workflows/` of any
+# repo that uses pwned-deps. Three things to customise:
+#
+#   1. `paths:` — the lockfiles you care about.
+#   2. The `pwned-deps check .` invocation if you want a different scope
+#      (e.g. `--offline`, a specific subdirectory).
+#   3. Optional: replace `${{ secrets.GITHUB_TOKEN }}` with a fine-grained
+#      PAT if you want comments to attribute to a bot account.
+#
+# The job:
+#   * Runs `pwned-deps check . --format json` on the PR head.
+#   * Pipes the JSON through `tools/pr_comment.py` (curled from this
+#     repo at the pinned ref) to render a Markdown body with a magic
+#     marker.
+#   * `gh pr comment --edit-last` finds the previous comment by marker
+#     and edits it in place — no spam on every push.
+#
+# Exit policy: this job posts the comment and *fails* if compromised
+# packages are present (exit 1). For report-only mode replace the final
+# `exit $rc` line with `exit 0`.
+
+name: pwned-deps PR comment
+
+on:
+  pull_request:
+    paths:
+      - "**/package-lock.json"
+      - "**/yarn.lock"
+      - "**/pnpm-lock.yaml"
+      - "**/requirements.txt"
+      - "**/poetry.lock"
+      - "**/Pipfile.lock"
+      - "**/go.sum"
+      - "**/Cargo.lock"
+      - "**/Gemfile.lock"
+      - "**/pom.xml"
+
+permissions:
+  contents: read
+  pull-requests: write   # required for `gh pr comment`
+
+jobs:
+  scan-and-comment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pwned-deps
+        run: pip install --quiet pwned-deps
+
+      - name: Fetch comment renderer
+        run: |
+          # Pin to a tag (e.g. v0.1.1) once the helper has a release.
+          curl -fsSL \
+            https://raw.githubusercontent.com/mkbhardwas12/pwned-deps/main/tools/pr_comment.py \
+            -o pr_comment.py
+
+      - name: Scan + render comment
+        id: scan
+        run: |
+          set +e
+          pwned-deps check . --format json > scan.json
+          rc=$?
+          python pr_comment.py scan.json > comment.md
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+
+      - name: Post (or update) sticky PR comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # Try editing the previous comment; fall back to a fresh post.
+          gh pr comment "$PR" --body-file comment.md --edit-last \
+            || gh pr comment "$PR" --body-file comment.md
+
+      - name: Fail step if compromised packages were found
+        if: steps.scan.outputs.rc != '0'
+        run: |
+          echo "::error::pwned-deps reported exit ${{ steps.scan.outputs.rc }}"
+          exit ${{ steps.scan.outputs.rc }}

@@ -8,7 +8,7 @@
 
 <!-- TODO(logo): place a 256x256 PNG at docs/logo.png and reference it here. -->
 
-![pwned-deps demo](docs/demo.gif)
+![pwned-deps demo: scanning an npm lockfile and flagging a Mini Shai-Hulud compromised package](docs/demo.gif)
 
 > Re-render the demo any time the CLI's output changes:
 > `make demo-gif` (Docker; no host installs).
@@ -48,6 +48,8 @@
 - [FAQ](#faq)
 - [Contributing](#contributing)
 - [Maintenance](#maintenance)
+- [Changelog](CHANGELOG.md)
+- [Security policy](SECURITY.md)
 - [License](#license)
 - [Maintainer](#maintainer)
 
@@ -512,6 +514,10 @@ pwned-deps report scans/*.json -o dashboard.html --title "ACME · supply chain"
 ```
 
 ![dashboard preview](docs/assets/demo-dashboard.png)
+
+> **Click to interact:** the same dashboard rendered for a 5-repo "ACME Corp" demo
+> is committed at [`docs/assets/demo-dashboard.html`](docs/assets/demo-dashboard.html) — open it
+> locally to try the filter chips and see the per-campaign rollup.
 
 The HTML file is self-contained — inline CSS, no external assets,
 no telemetry, no JavaScript dependencies (one tiny vanilla-JS filter

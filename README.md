@@ -228,6 +228,13 @@ Python 3.10+ on macOS, Linux, or Windows.
 
 ## See it in action
 
+**Try it now** — the [interactive lockfile simulator](https://mkbhardwas12.github.io/pwned-deps/simulator.html)
+runs a faithful in-browser replay of `pwned-deps check` against four
+sample lockfiles (Mini Shai-Hulud, event-stream historic, mixed,
+clean). Real campaign data, no network calls.
+
+Below are the same outputs captured against bundled fixtures:
+
 > Real terminal output — captured with `tools/capture_demos.py` against
 > the bundled fixtures, not mocked. Reproduce locally with
 > `pwned-deps check tests/fixtures/npm/mini-shaihulud.lock.json`.

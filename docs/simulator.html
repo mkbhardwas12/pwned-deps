@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pwned-deps — interactive lockfile simulator</title>
+<meta name="description" content="Interactive in-browser simulation of 'pwned-deps check' against a sample npm lockfile. Real campaign data, no telemetry, no network calls.">
+<style>
+  :root { --fg:#0f172a; --muted:#475569; --bg:#ffffff; --card:#f8fafc; --accent:#0369a1; --bad:#dc2626; --warn:#d97706; --good:#16a34a; --border:#e2e8f0; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg); }
+  header { background:linear-gradient(135deg,#0f172a,#1e293b); color:#f8fafc; padding:2rem 1.5rem 1.75rem; }
+  header .wrap { max-width:920px; margin:0 auto; }
+  header h1 { margin:0 0 .35rem; font-size:1.85rem; letter-spacing:-.02em; }
+  header p.sub { margin:0; color:#cbd5e1; font-size:1rem; }
+  header a.back { color:#7dd3fc; text-decoration:none; font-size:.9rem; display:inline-block; margin-bottom:.75rem; }
+  main { max-width:920px; margin:0 auto; padding:1.75rem 1.5rem 2.5rem; }
+  .panel { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1.25rem 1.4rem; margin-bottom:1.25rem; }
+  .panel h2 { margin:0 0 .5rem; font-size:1.05rem; letter-spacing:-.005em; }
+  .panel p { margin:0; color:var(--muted); font-size:.95rem; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; }
+  button.primary { background:var(--accent); color:#fff; border:0; padding:.7rem 1.2rem; font:inherit; font-weight:600; border-radius:6px; cursor:pointer; }
+  button.primary:hover { background:#075985; }
+  button.primary:disabled { opacity:.5; cursor:not-allowed; }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid var(--border); padding:.7rem 1rem; font:inherit; border-radius:6px; cursor:pointer; }
+  select { padding:.55rem .6rem; font:inherit; border:1px solid var(--border); border-radius:6px; background:#fff; }
+  pre.lockfile { background:#0f172a; color:#e2e8f0; padding:1rem; border-radius:8px; overflow:auto; font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; max-height:260px; }
+  .kpis { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:.75rem; }
+  .kpi { background:#fff; border:1px solid var(--border); border-radius:8px; padding:.6rem 1rem; min-width:120px; }
+  .kpi .v { font-size:1.6rem; font-weight:700; line-height:1.1; }
+  .kpi .l { font-size:.78rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .kpi.bad .v { color:var(--bad); }
+  .kpi.good .v { color:var(--good); }
+  .findings { display:flex; flex-direction:column; gap:.6rem; margin-top:.75rem; }
+  .finding { display:flex; gap:.8rem; padding:.85rem 1rem; background:#fff; border:1px solid var(--border); border-left-width:5px; border-radius:6px; align-items:flex-start; }
+  .finding.mal { border-left-color:var(--bad); }
+  .finding.high { border-left-color:var(--warn); }
+  .finding.ok { border-left-color:var(--good); }
+  .finding .icon { font-size:1.3rem; flex-shrink:0; line-height:1.4; }
+  .finding .body { flex:1; min-width:0; }
+  .finding .name { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.95rem; }
+  .finding .summary { color:var(--muted); font-size:.88rem; margin-top:.15rem; }
+  .finding .meta { font-size:.8rem; color:#94a3b8; margin-top:.3rem; }
+  .pill { display:inline-block; padding:.15rem .55rem; border-radius:999px; font-size:.72rem; font-weight:700; letter-spacing:.04em; }
+  .pill.mal { background:#fee2e2; color:var(--bad); border:1px solid #fecaca; }
+  .pill.high { background:#fef3c7; color:var(--warn); border:1px solid #fde68a; }
+  .pill.ok { background:#dcfce7; color:var(--good); border:1px solid #bbf7d0; }
+  .console { background:#0f172a; color:#e2e8f0; padding:.85rem 1rem; border-radius:8px; font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; min-height:80px; overflow:auto; max-height:220px; white-space:pre-wrap; }
+  .console .ok { color:#86efac; }
+  .console .bad { color:#fca5a5; }
+  .console .muted { color:#94a3b8; }
+  .disclaimer { margin-top:1rem; padding:.75rem 1rem; background:#fef9c3; border:1px solid #fde68a; border-radius:8px; font-size:.85rem; color:#78350f; }
+  footer { border-top:1px solid var(--border); margin-top:2.5rem; padding:1.25rem 0; color:var(--muted); font-size:.8rem; text-align:center; }
+  .progress { height:4px; background:var(--border); border-radius:2px; overflow:hidden; margin:.5rem 0 .25rem; }
+  .progress > div { height:100%; background:var(--accent); width:0; transition:width .3s linear; }
+  details { margin-top:.5rem; }
+  summary { cursor:pointer; color:var(--accent); font-size:.88rem; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="back" href="./">← back to pwned-deps</a>
+    <h1>Lockfile Simulator</h1>
+    <p class="sub">Run <code>pwned-deps check</code> in your browser. Real campaign data from the bundled feed; no network calls, no telemetry.</p>
+  </div>
+</header>
+<main>
+
+<div class="panel">
+  <h2>1 · Pick a sample lockfile</h2>
+  <p>Each sample is a faithful subset of a real lockfile we ship as a test fixture.</p>
+  <div class="toolbar" style="margin-top:.75rem">
+    <select id="sample" aria-label="Sample lockfile">
+      <option value="shaihulud">Mini Shai-Hulud (SAP CAP, April 2026) — 1 finding</option>
+      <option value="eventstream">event-stream historic (Nov 2018) — 2 findings</option>
+      <option value="mixed">Mixed: SAP + event-stream + clean — 4 packages</option>
+      <option value="clean">Clean: typical dev project — 0 findings</option>
+    </select>
+    <button class="primary" id="scanBtn" type="button">▶ Scan lockfile</button>
+    <button class="ghost" id="resetBtn" type="button">Reset</button>
+  </div>
+  <details>
+    <summary>Show lockfile (npm package-lock.json v3 subset)</summary>
+    <pre class="lockfile" id="lockfilePre">Pick a sample above to preview its lockfile.</pre>
+  </details>
+</div>
+
+<div class="panel">
+  <h2>2 · Scan output</h2>
+  <p>This is exactly what <code>pwned-deps check &lt;lockfile&gt; --offline</code> would print, replayed character-by-character.</p>
+  <div class="console" id="console" aria-live="polite"></div>
+  <div class="progress" id="progressWrap" hidden><div id="progressBar"></div></div>
+</div>
+
+<div class="panel">
+  <h2>3 · Findings</h2>
+  <div class="kpis" id="kpis">
+    <div class="kpi"><div class="v" id="kpiScanned">—</div><div class="l">scanned</div></div>
+    <div class="kpi bad"><div class="v" id="kpiMal">—</div><div class="l">malicious</div></div>
+    <div class="kpi"><div class="v" id="kpiHigh">—</div><div class="l">high / critical</div></div>
+    <div class="kpi good"><div class="v" id="kpiClean">—</div><div class="l">clean</div></div>
+  </div>
+  <div class="findings" id="findings"></div>
+  <div class="disclaimer">
+    <strong>Real data, simulated transport.</strong> All advisory IDs (<code>EXTRA-2018-0001</code>,
+    <code>EXTRA-2026-0001</code>) and SHA-256s shown above are the actual entries shipped in
+    <a href="https://github.com/mkbhardwas12/pwned-deps/blob/main/src/pwned_deps/extras_data/extras.json">extras.json</a>.
+    To verify against the live OSV.dev database, run the real CLI:
+    <code>pipx install pwned-deps &amp;&amp; pwned-deps check ./package-lock.json</code>.
+  </div>
+</div>
+
+</main>
+<footer>
+  No network calls · No analytics · All logic runs in your browser.
+  · <a href="https://github.com/mkbhardwas12/pwned-deps">source</a>
+</footer>
+
+<script>
+"use strict";
+
+// Real campaign data, copied verbatim from src/pwned_deps/extras_data/extras.json
+// (only the fields needed for display).
+const SAMPLES = {
+  shaihulud: {
+    name: "package-lock.json (SAP CAP project)",
+    lockfile: {
+      name: "acme-cap-app",
+      version: "1.0.0",
+      lockfileVersion: 3,
+      packages: {
+        "node_modules/@cap-js/sqlite": { version: "2.2.2" }
+      }
+    },
+    pkgs: [
+      { ecosystem: "npm", name: "@cap-js/sqlite", version: "2.2.2",
+        finding: {
+          severity: "MALICIOUS", id: "EXTRA-2026-0001",
+          summary: "Mini Shai-Hulud (SAP CAP) — credential-stealing preinstall script",
+          ref: "https://thehackernews.com/2026/04/sap-npm-packages-compromised-by-mini.html"
+        } }
+    ]
+  },
+  eventstream: {
+    name: "package-lock.json (legacy Node service)",
+    lockfile: {
+      name: "legacy-node-svc",
+      version: "0.4.2",
+      lockfileVersion: 3,
+      packages: {
+        "node_modules/event-stream": { version: "3.3.6" },
+        "node_modules/flatmap-stream": { version: "0.1.1" }
+      }
+    },
+    pkgs: [
+      { ecosystem: "npm", name: "event-stream", version: "3.3.6",
+        finding: {
+          severity: "MALICIOUS", id: "EXTRA-2018-0001",
+          summary: "event-stream / flatmap-stream credential stealer (targeted Copay wallet)",
+          ref: "https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident"
+        } },
+      { ecosystem: "npm", name: "flatmap-stream", version: "0.1.1",
+        finding: {
+          severity: "MALICIOUS", id: "EXTRA-2018-0001",
+          summary: "Transitive payload host (AES-256 encrypted blob in test/data.js)",
+          ref: "https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident"
+        } }
+    ]
+  },
+  mixed: {
+    name: "package-lock.json (mixed project)",
+    lockfile: {
+      name: "acme-monorepo-app",
+      version: "2.4.1",
+      lockfileVersion: 3,
+      packages: {
+        "node_modules/@cap-js/sqlite": { version: "2.2.2" },
+        "node_modules/event-stream": { version: "3.3.6" },
+        "node_modules/express": { version: "4.18.2" },
+        "node_modules/lodash": { version: "4.17.21" }
+      }
+    },
+    pkgs: [
+      { ecosystem: "npm", name: "@cap-js/sqlite", version: "2.2.2",
+        finding: {
+          severity: "MALICIOUS", id: "EXTRA-2026-0001",
+          summary: "Mini Shai-Hulud (SAP CAP) — credential-stealing preinstall script",
+          ref: "https://thehackernews.com/2026/04/sap-npm-packages-compromised-by-mini.html"
+        } },
+      { ecosystem: "npm", name: "event-stream", version: "3.3.6",
+        finding: {
+          severity: "MALICIOUS", id: "EXTRA-2018-0001",
+          summary: "event-stream / flatmap-stream credential stealer",
+          ref: "https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident"
+        } },
+      { ecosystem: "npm", name: "express", version: "4.18.2", finding: null },
+      { ecosystem: "npm", name: "lodash", version: "4.17.21", finding: null }
+    ]
+  },
+  clean: {
+    name: "package-lock.json (typical dev project)",
+    lockfile: {
+      name: "my-app",
+      version: "1.2.0",
+      lockfileVersion: 3,
+      packages: {
+        "node_modules/express": { version: "4.18.2" },
+        "node_modules/lodash": { version: "4.17.21" },
+        "node_modules/typescript": { version: "5.4.5" }
+      }
+    },
+    pkgs: [
+      { ecosystem: "npm", name: "express", version: "4.18.2", finding: null },
+      { ecosystem: "npm", name: "lodash", version: "4.17.21", finding: null },
+      { ecosystem: "npm", name: "typescript", version: "5.4.5", finding: null }
+    ]
+  }
+};
+
+const $ = (id) => document.getElementById(id);
+const sampleSel = $("sample");
+const scanBtn = $("scanBtn");
+const resetBtn = $("resetBtn");
+const lockfilePre = $("lockfilePre");
+const consoleEl = $("console");
+const findingsEl = $("findings");
+const progressWrap = $("progressWrap");
+const progressBar = $("progressBar");
+
+function showLockfile() {
+  const s = SAMPLES[sampleSel.value];
+  lockfilePre.textContent = JSON.stringify(s.lockfile, null, 2);
+}
+sampleSel.addEventListener("change", () => { showLockfile(); reset(); });
+showLockfile();
+
+function reset() {
+  consoleEl.innerHTML = "";
+  findingsEl.innerHTML = "";
+  $("kpiScanned").textContent = "—";
+  $("kpiMal").textContent = "—";
+  $("kpiHigh").textContent = "—";
+  $("kpiClean").textContent = "—";
+  progressWrap.hidden = true;
+  progressBar.style.width = "0";
+}
+resetBtn.addEventListener("click", reset);
+
+function consoleLine(text, cls) {
+  const span = document.createElement("span");
+  if (cls) span.className = cls;
+  span.textContent = text + "\n";
+  consoleEl.appendChild(span);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function scan() {
+  reset();
+  scanBtn.disabled = true;
+  const s = SAMPLES[sampleSel.value];
+  const total = s.pkgs.length;
+  progressWrap.hidden = false;
+
+  consoleLine(`pwned-deps 0.1.0 — checking ./${s.name} (npm)`, "muted");
+  consoleLine("");
+  await sleep(280);
+
+  let mal = 0, high = 0, clean = 0;
+  for (let i = 0; i < total; i++) {
+    const p = s.pkgs[i];
+    consoleLine(`  → ${p.ecosystem}:${p.name}@${p.version}`, "muted");
+    await sleep(220);
+    if (p.finding) {
+      const sev = p.finding.severity;
+      consoleLine(`    [${sev}] ${p.finding.id} — ${p.finding.summary}`, "bad");
+      if (sev === "MALICIOUS") mal++; else high++;
+    } else {
+      clean++;
+    }
+    progressBar.style.width = `${((i+1)/total) * 100}%`;
+    await sleep(120);
+  }
+
+  consoleLine("");
+  if (mal + high === 0) {
+    consoleLine(`✅ All ${total} packages clean.`, "ok");
+  } else {
+    consoleLine(`${total} packages scanned · ${mal} malicious · ${high} high/critical · ${clean} clean`, mal ? "bad" : "ok");
+    consoleLine("(exit 1 — fail the build)", "bad");
+  }
+
+  // KPIs
+  $("kpiScanned").textContent = total;
+  $("kpiMal").textContent = mal;
+  $("kpiHigh").textContent = high;
+  $("kpiClean").textContent = clean;
+
+  // Render findings cards
+  for (const p of s.pkgs) {
+    const div = document.createElement("div");
+    if (p.finding) {
+      const sev = p.finding.severity;
+      const cls = sev === "MALICIOUS" ? "mal" : "high";
+      div.className = `finding ${cls}`;
+      div.innerHTML = `
+        <div class="icon" aria-hidden="true">${sev === "MALICIOUS" ? "⚠️" : "❗"}</div>
+        <div class="body">
+          <div><span class="name">${p.ecosystem}:${escapeHtml(p.name)}@${escapeHtml(p.version)}</span>
+               <span class="pill ${cls}" style="margin-left:.5rem">${sev}</span></div>
+          <div class="summary">${escapeHtml(p.finding.summary)}</div>
+          <div class="meta">${p.finding.id} · <a href="${p.finding.ref}" target="_blank" rel="noopener noreferrer">named source ↗</a></div>
+        </div>`;
+    } else {
+      div.className = "finding ok";
+      div.innerHTML = `
+        <div class="icon" aria-hidden="true">✅</div>
+        <div class="body">
+          <div><span class="name">${p.ecosystem}:${escapeHtml(p.name)}@${escapeHtml(p.version)}</span>
+               <span class="pill ok" style="margin-left:.5rem">CLEAN</span></div>
+          <div class="summary">No matching advisory in OSV.dev or the bundled campaign feed.</div>
+        </div>`;
+    }
+    findingsEl.appendChild(div);
+  }
+
+  scanBtn.disabled = false;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+scanBtn.addEventListener("click", scan);
+</script>
+</body>
+</html>

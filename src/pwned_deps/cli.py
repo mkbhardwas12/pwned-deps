@@ -229,6 +229,193 @@ def version_cmd() -> None:
     click.echo(pwned_deps.__version__)
 
 
+@main.command(name="audit-repo")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"], case_sensitive=False),
+    default="text",
+    show_default=True,
+    help="Output format.",
+)
+@click.option(
+    "--feed-file",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Optional extra campaign feed (JSON file).",
+)
+@click.option(
+    "--max-bytes",
+    type=int,
+    default=None,
+    show_default=False,
+    help="Skip files larger than this (default 50 MiB).",
+)
+@click.option(
+    "--ci",
+    is_flag=True,
+    default=False,
+    help="Suppress color/decorations.",
+)
+@click.pass_context
+def audit_repo_cmd(
+    ctx: click.Context,
+    path: Path,
+    fmt: str,
+    feed_file: Path | None,
+    max_bytes: int | None,
+    ci: bool,
+) -> None:
+    """Hunt for known-bad files (e.g. Mini Shai-Hulud IDE-persistence drops).
+
+    Walks PATH and matches every file against the campaign feed's
+    ``file_iocs`` blocks (SHA-256 + path-hint). Use this AFTER `check`
+    has flagged a compromised lockfile, to confirm whether the
+    second-stage payload landed on disk as IDE persistence.
+    """
+
+    from pwned_deps.audit.repo import (
+        DEFAULT_MAX_FILE_BYTES,
+        FileHit,
+        audit_repo,
+        collect_file_iocs,
+    )
+
+    extras = _load_extras(feed_file)
+    iocs = collect_file_iocs(extras)
+    cap = max_bytes if max_bytes is not None else DEFAULT_MAX_FILE_BYTES
+    hits = audit_repo(path, extras, max_file_bytes=cap)
+
+    if fmt == "json":
+        import json as _json
+
+        payload = {
+            "schema_version": "1.0",
+            "tool": {"name": "pwned-deps", "version": pwned_deps.__version__},
+            "root": str(path),
+            "iocs_loaded": len(iocs),
+            "hits": [_hit_to_json(h, root=path) for h in hits],
+            "summary": {
+                "total": len(hits),
+                "confirmed_sha256": sum(1 for h in hits if h.is_confirmed),
+                "path_only": sum(1 for h in hits if not h.is_confirmed),
+            },
+        }
+        click.echo(_json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        _render_audit_text(path, iocs_loaded=len(iocs), hits=hits, ci=ci)
+
+    if any(h.is_confirmed for h in hits):
+        ctx.exit(1)
+    if hits:
+        ctx.exit(2)
+    ctx.exit(0)
+
+
+def _hit_to_json(hit: object, *, root: Path) -> dict[str, object]:
+    """Serialise a ``FileHit`` for JSON output."""
+
+    from pwned_deps.audit.repo import FileHit
+
+    assert isinstance(hit, FileHit)
+    try:
+        rel = str(hit.path.relative_to(root))
+    except ValueError:
+        rel = str(hit.path)
+    return {
+        "path": rel,
+        "absolute_path": str(hit.path),
+        "sha256": hit.sha256,
+        "matched_by": hit.matched_by,
+        "confirmed": hit.is_confirmed,
+        "ioc": {
+            "campaign_id": hit.ioc.campaign_id,
+            "campaign_name": hit.ioc.campaign_name,
+            "path_hint": hit.ioc.path_hint,
+            "expected_sha256": hit.ioc.sha256,
+            "expected_size_bytes": hit.ioc.size_bytes,
+            "description": hit.ioc.description,
+            "source": hit.ioc.source,
+        },
+    }
+
+
+def _render_audit_text(
+    root: Path,
+    *,
+    iocs_loaded: int,
+    hits: list[object],
+    ci: bool,
+) -> None:
+    """Compact text renderer for ``audit-repo``."""
+
+    from pwned_deps.audit.repo import FileHit
+
+    click.echo(
+        f"pwned-deps {pwned_deps.__version__} \u2014 auditing {root} "
+        f"({iocs_loaded} file IoCs loaded)"
+    )
+    if not iocs_loaded:
+        click.echo("no file IoCs in feed \u2014 nothing to match against", err=True)
+        click.echo("")
+        click.echo("0 hits")
+        return
+
+    if not hits:
+        click.echo("")
+        click.echo("CLEAN \u2014 no known-bad files found")
+        return
+
+    confirmed = [h for h in hits if isinstance(h, FileHit) and h.is_confirmed]
+    suspect = [h for h in hits if isinstance(h, FileHit) and not h.is_confirmed]
+
+    if confirmed:
+        click.echo("")
+        click.echo(f"CONFIRMED \u2014 {len(confirmed)} file(s) match a known-bad SHA-256")
+        for h in confirmed:
+            assert isinstance(h, FileHit)
+            try:
+                rel = str(h.path.relative_to(root))
+            except ValueError:
+                rel = str(h.path)
+            click.echo(f"  {rel}")
+            click.echo(f"    matched: {h.matched_by}")
+            click.echo(f"    sha256:  {h.sha256}")
+            click.echo(f"    campaign: {h.ioc.campaign_id} \u2014 {h.ioc.campaign_name}")
+            if h.ioc.description:
+                click.echo(f"    note:    {h.ioc.description}")
+
+    if suspect:
+        click.echo("")
+        click.echo(
+            f"SUSPECT \u2014 {len(suspect)} file(s) at known-persistence paths "
+            f"(content modified or new variant)"
+        )
+        for h in suspect:
+            assert isinstance(h, FileHit)
+            try:
+                rel = str(h.path.relative_to(root))
+            except ValueError:
+                rel = str(h.path)
+            click.echo(f"  {rel}")
+            click.echo(f"    sha256:  {h.sha256}")
+            click.echo(f"    campaign: {h.ioc.campaign_id} \u2014 {h.ioc.campaign_name}")
+            if h.ioc.description:
+                click.echo(f"    note:    {h.ioc.description}")
+
+    click.echo("")
+    click.echo(
+        f"{len(hits)} hit(s) \u00b7 "
+        f"{len(confirmed)} confirmed \u00b7 "
+        f"{len(suspect)} path-only"
+    )
+    _ = ci  # currently unused; reserved for future colorisation toggle.
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

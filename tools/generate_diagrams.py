@@ -505,10 +505,10 @@ def timeline_diagram(out_path: Path) -> None:
             "mbt@1.2.48",
         ]),
         # column 1 — april 30
-        ("Apr 30 — follow-on", PURPLE, [
-            "intercom-client@7.0.5",
-            "lightning@2.6.2",
-            "lightning@2.6.3",
+        ("Apr 30 — follow-on (cross-ecosystem)", PURPLE, [
+            "intercom-client@7.0.5  (npm)",
+            "lightning@2.6.2  (PyPI)",
+            "lightning@2.6.3  (PyPI)",
         ]),
         # column 2 — impact stats
         ("Impact (per SecurityBridge)", AMBER, [

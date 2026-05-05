@@ -24,7 +24,8 @@ preinstall script exfiltrated GitHub PATs, npm tokens, AWS / Azure /
 GCP / Kubernetes credentials.
 
 A day later, the same operator trojanised three more package
-versions: intercom-client@7.0.5, lightning@2.6.2, lightning@2.6.3.
+versions: npm intercom-client@7.0.5, plus PyPI lightning@2.6.2 and
+lightning@2.6.3 (the PyTorch Lightning package — not an npm dep).
 
 Today, confirming whether YOUR pipeline ran during that window means
 manual log-diving across CI runs, lockfile diffs, and vendor blogs.

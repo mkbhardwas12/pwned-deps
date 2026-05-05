@@ -62,11 +62,13 @@ where a primary source did not publish exact UTC stamps):
   "roughly two to four hours" phrasing). Published `.tgz` SHA-256
   digests included per [Wiz](https://www.wiz.io/blog/mini-shai-hulud-supply-chain-sap-npm).
 - **EXTRA-2026-0002 — Follow-on (intercom-client + lightning)** —
-  `intercom-client@7.0.5`, `lightning@2.6.2`, `lightning@2.6.3`. Same
-  operator as the SAP CAP campaign (shared C2 `zero.masscan.cloud`,
-  fallback channel via GitHub commits keyed `beautifulcastle`).
-  Payload extended to target Kubernetes ServiceAccount tokens and
-  HashiCorp Vault secrets ([Wiz](https://www.wiz.io/blog/mini-shai-hulud-supply-chain-sap-npm)).
+  cross-ecosystem campaign by the same operator: npm
+  `intercom-client@7.0.5` plus **PyPI** `lightning@2.6.2` and
+  `lightning@2.6.3` (PyTorch Lightning, not an npm dep — flagged
+  via per-package `ecosystem` overrides in `extras.json`). Shared C2
+  `zero.masscan.cloud`, fallback channel via GitHub commits keyed
+  `beautifulcastle`. Payload extended to target Kubernetes
+  ServiceAccount tokens and HashiCorp Vault secrets ([Wiz](https://www.wiz.io/blog/mini-shai-hulud-supply-chain-sap-npm)).
 
 ### CLI flags
 

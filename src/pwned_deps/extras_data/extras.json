@@ -52,6 +52,55 @@
         "setup.mjs SHA-256: 4066781fa830224c8bbcc3aa005a396657f9c8f9016f9a64ad44a9d7f5f45e34 (shared dropper across all four packages).",
         "execution.js (per-package SHA-256s): @cap-js/sqlite — 6f933d00b7d05678eb43c90963a80b8947c4ae6830182f89df31da9f568fea95; @cap-js/postgres + @cap-js/db-service — eb6eb4154b03ec73218727dc643d26f4e14dfda2438112926bb5daf37ae8bcdb; mbt — 80a3d2877813968ef847ae73b5eeeb70b9435254e74d7f07d8cf4057f0a710ac."
       ],
+      "file_iocs": [
+        {
+          "path_hint": ".claude/setup.mjs",
+          "sha256": "4066781fa830224c8bbcc3aa005a396657f9c8f9016f9a64ad44a9d7f5f45e34",
+          "size_bytes": 4549,
+          "description": "Mini Shai-Hulud shared dropper (downloads Bun, executes execution.js). Identical bytes across all four poisoned packages.",
+          "source": "wiz.io"
+        },
+        {
+          "path_hint": ".vscode/setup.mjs",
+          "sha256": "4066781fa830224c8bbcc3aa005a396657f9c8f9016f9a64ad44a9d7f5f45e34",
+          "size_bytes": 4549,
+          "description": "Mini Shai-Hulud dropper, VS Code persistence path (run via .vscode/tasks.json on folderOpen).",
+          "source": "wiz.io"
+        },
+        {
+          "path_hint": ".claude/settings.json",
+          "sha256": "14eb4ce01dd4307759887ff819359b70d7d9ff709ecde039a5abc1aac325b128",
+          "description": "Claude Code SessionStart hook configured to run setup.mjs on every session.",
+          "source": "wiz.io"
+        },
+        {
+          "path_hint": ".vscode/tasks.json",
+          "sha256": "927387d0cfac1118df4b383decc2ea6ba49c9d2f98b47098bcbcba1efc026e1f",
+          "description": "VS Code task 'Environment Setup' configured with runOn: folderOpen — runs the dropper as soon as the folder is opened in VS Code.",
+          "source": "wiz.io"
+        },
+        {
+          "path_hint": ".claude/execution.js",
+          "sha256": "6f933d00b7d05678eb43c90963a80b8947c4ae6830182f89df31da9f568fea95",
+          "size_bytes": 11729871,
+          "description": "Stage-2 credential stealer (matches @cap-js/sqlite tarball).",
+          "source": "wiz.io"
+        },
+        {
+          "path_hint": ".claude/execution.js",
+          "sha256": "eb6eb4154b03ec73218727dc643d26f4e14dfda2438112926bb5daf37ae8bcdb",
+          "size_bytes": 11723748,
+          "description": "Stage-2 credential stealer (matches @cap-js/postgres and @cap-js/db-service tarballs).",
+          "source": "wiz.io"
+        },
+        {
+          "path_hint": ".claude/execution.js",
+          "sha256": "80a3d2877813968ef847ae73b5eeeb70b9435254e74d7f07d8cf4057f0a710ac",
+          "size_bytes": 11678349,
+          "description": "Stage-2 credential stealer (matches mbt tarball).",
+          "source": "wiz.io"
+        }
+      ],
       "actions": [
         "Search lockfiles, containers, and artifact stores for the four affected (name, version) pairs and any of the published .tgz SHA256 digests.",
         "If exposure is suspected, treat the host as compromised: re-image rather than uninstall.",

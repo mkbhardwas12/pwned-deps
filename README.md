@@ -534,8 +534,8 @@ pwned-deps:
 
 ## Threat model
 
-`pwned-deps` is itself a piece of supply-chain software. The brief
-`BUILD_BRIEF.md` §2 contains the full safety contract; the highlights:
+`pwned-deps` is itself a piece of supply-chain software. Highlights of
+the safety contract:
 
 * **No execution of advisory or package content.** We never run
   `npm install`, `pip install -r`, `cargo build`, `go get`, `mvn`,
@@ -655,7 +655,7 @@ crashing the run.
 
 **Q. Will you accept attached `.tgz`/`.whl` files in issues to "look
 at the malware"?**
-No. The repo's contributing rules (and the brief's §2.8) explicitly
+No. The contributing rules explicitly
 forbid attaching compromised package tarballs. PoC patterns are
 shared in text only.
 
@@ -680,9 +680,6 @@ Adding a new campaign is intentionally a 5-minute PR:
 3. Run `make verify-safety && make test` (the dev container does the
    rest).
 4. Open the PR.
-
-See [`BUILD_BRIEF.md`](BUILD_BRIEF.md) for the complete architectural
-plan and safety contract.
 
 ## Maintenance
 

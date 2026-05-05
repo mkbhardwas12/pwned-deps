@@ -19,7 +19,7 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   carries `command: "audit-repo"` discriminator alongside
   `schema_version: "1.0"`. New module: `pwned_deps.audit.repo`. 11
   new tests using synthetic feeds + benign payloads (no real
-  malicious bytes — BUILD_BRIEF §2.8).
+  malicious bytes).
 - `extras.json` schema gained two optional fields:
   - `iocs[]` (campaign-level free-text indicators — rogue-repo
     signatures, commit-message prefixes, C2 domains).
@@ -83,32 +83,29 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   fail the case-sensitive matcher. Documented the OSV vocabulary
   explicitly to prevent future contributors hitting the same bug.
 
-## [Unreleased — earlier]
+## [0.1.0] — initial release
 
-- Step 0 — bootstrap. Imported `BUILD_BRIEF.md` as the single source of
-  truth, `BUILD_LOG.md` for per-step plan + gate evidence, host-side
-  ignore files (`.gitignore`, `.dockerignore`).
-- Step 1 — project skeleton. `pyproject.toml` (Hatchling, Python ≥3.10,
+- Project skeleton: `pyproject.toml` (Hatchling, Python ≥3.10,
   Apache-2.0), `src/pwned_deps/__init__.py` exposing `__version__`,
   smoke tests, `Dockerfile.dev` (non-root `appuser` UID 1000, base
   image to be pinned via `make pin-base`), `Makefile` (build, shell,
   test, verify-safety, verify-safety-self-test, lint, pin-base, clean),
   `requirements.lock` (pytest + pytest-httpx + ruff), `LICENSE`
   (Apache-2.0).
-- Step 2 — npm lockfile parser. `parsers/base.py` shared dataclasses
+- npm lockfile parser. `parsers/base.py` shared dataclasses
   (`Package`, `Lockfile`, `Ecosystem` StrEnum matching OSV vocabulary,
   `ParseError`); `parsers/npm.py` handling `package-lock.json` v1
   (recursive `dependencies`), v2 (prefer `packages`, skip workspace
   links), v3 (`packages` only); 8 unit tests covering every shape and
   error path.
-- Step 3 — Python lockfile parsers. `parsers/pypi.py` auto-dispatches by
+- Python lockfile parsers. `parsers/pypi.py` auto-dispatches by
   filename to handlers for `requirements*.txt` (pinned vs loose vs
   editable/VCS/local), `Pipfile.lock` (default + develop merge),
   `poetry.lock`, and `uv.lock` (workspace-root skip). Loose pins are
   emitted with `version_unspecified=True`. Names canonicalised to
   PEP 503 form. 9 unit tests on inert hand-crafted fixtures. `tomli`
   added as a dev dep for Python 3.10 fallback.
-- Step 4 — OSV client + SQLite cache. `advisory/types.py` (`Advisory`,
+- OSV client + SQLite cache. `advisory/types.py` (`Advisory`,
   `Severity`); `advisory/osv_client.py` synchronous client using
   `httpx.Client(trust_env=False)` (host proxy isolation), batches up
   to 1000 packages via `POST /v1/querybatch`, fetches full details
@@ -117,7 +114,7 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   advisories) supporting negative caching and TTL. MAL-* IDs are
   promoted to severity CRITICAL. 13 unit tests + 1 opt-in live
   network test. `httpx==0.27.2` pinned.
-- Step 5 — Matcher + extras.json. `advisory/version_match.py` minimal
+- Matcher + extras.json. `advisory/version_match.py` minimal
   range matcher supporting `=`, `==`, `!=`, `<`, `<=`, `>`, `>=`,
   AND-joined; PEP 440 for PyPI, conservative SemVer-style for npm
   with prerelease ordering; `advisory/extras.py` loads bundled
@@ -125,20 +122,20 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   `CampaignMatch` records; `advisory/matcher.py` combines extras
   campaigns with OSV findings into `Finding` records carrying
   `is_malicious` + `campaign_name`. Bundled `extras_data/extras.json`
-  is a placeholder pending Step 7 Mini Shai-Hulud research. 26 new
-  tests. `packaging==26.2` pinned as a runtime dep.
-- Step 6 — CLI. `cli.py` exposes `check`, `update`, and `version`
+  initial placeholder. 26 new tests. `packaging==26.2` pinned as a
+  runtime dep.
+- CLI. `cli.py` exposes `check`, `update`, and `version`
   subcommands via click. `check` accepts a file or directory (with
   filename-based autodetection for npm/PyPI lockfiles). Output
   formats: `text` (rich-rendered), `json` (preliminary; full schema
-  in Step 8), `sarif` (stub for Step 8). Flags: `--offline`, `--ci`,
+  in a follow-up), `sarif` (initial stub). Flags: `--offline`, `--ci`,
   `--no-color`, `--cache-ttl`, `--feed-file`, `--cache-path`,
-  `--explain`. Exit codes follow BUILD_BRIEF §3 (0 / 1 / 2 / 3).
+  `--explain`. Exit codes: 0 (clean) / 1 (compromised) / 2 (suspect) / 3 (error).
   `report/text.py` rich renderer; `report/json_out.py` minimal
   reporter. `[project.scripts] pwned-deps = "pwned_deps.cli:main"`
   wired. 9 new CliRunner tests. `click==8.1.7` and `rich==13.9.4`
   pinned.
-- Step 7 — Mini Shai-Hulud (SAP CAP) campaign in bundled
+- Mini Shai-Hulud (SAP CAP) campaign in bundled
   `extras_data/extras.json`: all four affected packages
   (`@cap-js/sqlite@2.2.2`, `@cap-js/postgres@2.2.2`,
   `@cap-js/db-service@2.10.1`, `mbt@1.2.48`) with published SHA256
@@ -149,16 +146,16 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   securitybridge.com, wiz.io. End-to-end test
   (`test_step7_mini_shaihulud.py`) drives the COMPROMISED branch on
   a fixture pinning `@cap-js/sqlite@2.2.2`.
-- Step 8 — SARIF v2.1.0 output. `report/sarif.py` produces a
+- SARIF v2.1.0 output. `report/sarif.py` produces a
   schema-conforming SARIF log (driver name/version/informationUri,
-  unique rules per advisory ID, results with level mapping per the
-  brief, stable `partialFingerprints.primaryLocationLineHash` for
+  unique rules per advisory ID, results with level mapping,
+  stable `partialFingerprints.primaryLocationLineHash` for
   GitHub Code Scanning dedup). `--format sarif` is now wired in
   the CLI. 5 new tests including end-to-end validation against the
   bundled OASIS schema (111 KB at
   `tests/fixtures/sarif/sarif-2.1.0-schema.json`). `jsonschema`
   added as a dev-only dep.
-- Step 9 — six additional ecosystem parsers wired into the CLI's
+- Six additional ecosystem parsers wired into the CLI's
   autodetect list: `parsers/cargo.py` (`Cargo.lock`),
   `parsers/go.py` (`go.sum`), `parsers/pnpm.py` (`pnpm-lock.yaml`,
   v5 + v6 key styles), `parsers/yarn.py` (`yarn.lock` v1 classic +
@@ -169,29 +166,24 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   (3 per ecosystem). Multi-ecosystem directory scan dogfooded
   end-to-end and the bundled Mini Shai-Hulud campaign matched
   across both pnpm and yarn fixtures. `pyyaml==6.0.2` pinned.
-- Step 10 — CLI now accepts multiple PATH arguments (so the §13
-  dogfood `pwned-deps check ./pyproject.toml ./requirements.lock`
+- CLI now accepts multiple PATH arguments (so the dogfood
+  `pwned-deps check ./pyproject.toml ./requirements.lock`
   works); unrecognised files are warn-skipped rather than
   failing. `.github/workflows/ci.yml` (verify-safety → lint →
   test 3.10/3.11/3.12 matrix → dogfood) and
   `.github/workflows/release.yml` (verify + lint + test + dogfood
   → build → SLSA Level 3 provenance via slsa-framework generator
-  → PyPI OIDC trusted publish → GitHub Release) committed
-  locally. Per user constraint, nothing is pushed and no tokens
-  are generated; PyPI Trusted Publisher registration is a
-  maintainer step in V1 acceptance.
-- Step 11 — README polish. Added badges (CI, PyPI, Python versions,
+  → PyPI OIDC trusted publish → GitHub Release).
+- README polish. Added badges (CI, PyPI, Python versions,
   license), expanded threat model section (network allow-list,
   container dev, OIDC, dogfood), added FAQ, fleshed out the
   comparison table with a license column and explicit "where
   osv-scanner is the right answer" honesty, expanded the
   contributing flow with the 5-minute campaign-PR procedure, and
-  added a maintenance-cadence section reflecting the brief's
-  burnout-mitigation guidance.
-- Post-V1: replaced `YOUR_GH_USERNAME` placeholder with `mkbhardwas12`
-  across 6 files; dropped the now-stale "(placeholder — sed-replace
-  before publish)" parenthetical.
-- Post-V1: hash-pinned `requirements.lock` per safety contract §2.6
+  added a maintenance-cadence section.
+- Replaced `YOUR_GH_USERNAME` placeholder with `mkbhardwas12`
+  across the repo.
+- Hash-pinned `requirements.lock` per safety contract
   (`requirements.in` + `pip-compile --generate-hashes`,
   `Dockerfile.dev` enforces `--require-hashes`, `make pin-deps`
   regenerates). Version bumps with regeneration: click 8.1.7→8.3.3,
@@ -199,7 +191,7 @@ uses [Conventional Commits](https://www.conventionalcommits.org/).
   pytest-httpx 0.32.0→0.35.0, pyyaml 6.0.2→6.0.3, rich 13.9.4→14.3.4,
   ruff 0.7.4→0.15.12. One test updated for the click 8.3
   `CliRunner(mix_stderr=...)` removal.
-- Post-V1: added `EXTRA-2026-0002` "Mini Shai-Hulud follow-on
+- Added `EXTRA-2026-0002` "Mini Shai-Hulud follow-on
   (intercom-client + lightning)" to the bundled extras feed.
   Sourced from Wiz: `intercom-client@7.0.5`, `lightning@2.6.2`,
   `lightning@2.6.3` poisoned April 30 2026 by the same operator

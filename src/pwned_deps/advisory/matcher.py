@@ -41,11 +41,15 @@ class Matcher:
         for hit in self._extras.find_matches(lockfile):
             key = (hit.package.name, hit.package.version, hit.advisory.id)
             seen.add(key)
+            # Maintainer-suspect hits are NOT marked is_malicious=True
+            # (we cannot prove the version in the lockfile is the bad
+            # one without a publish timestamp). They still surface as
+            # HIGH-severity findings -> exit 2.
             out.append(
                 Finding(
                     package=hit.package,
                     advisory=hit.advisory,
-                    is_malicious=True,
+                    is_malicious=not hit.is_suspect,
                     campaign_name=hit.campaign_name,
                 )
             )

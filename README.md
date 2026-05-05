@@ -350,6 +350,36 @@ covers `intercom-client@7.0.5` (npm) and `lightning@2.6.2/2.6.3`
 (PyPI) under one campaign — the same operator, the same shared
 C2, distinct package registries.
 
+**"What about the first 30 minutes of an account-hijack incident,
+when we know the maintainer is compromised but don't yet have the
+exact bad versions?"**
+Each campaign can declare a `compromised_maintainers` block:
+
+```json
+{
+  "id": "EXTRA-YYYY-NNNN",
+  "ecosystem": "npm",
+  "packages": [],
+  "compromised_maintainers": [
+    {
+      "name": "alice",
+      "registry_url": "https://www.npmjs.com/~alice",
+      "compromised_after": "2026-05-01T00:00:00Z",
+      "compromised_until": "2026-05-02T12:00:00Z",
+      "packages": ["alice-utils", "alice-cli"]
+    }
+  ]
+}
+```
+
+Any package whose name appears in that list is reported as a
+**SUSPECT** finding (HIGH severity → exit 2), distinct from the
+CONFIRMED **MALICIOUS** hits (CRITICAL → exit 1). The summary spells
+out the compromise window so a human can decide whether their
+install pre-dates it. Once specific bad versions are confirmed, move
+them into the `packages` block and the same lockfile re-scan will
+upgrade from SUSPECT to MALICIOUS automatically.
+
 **"How do we trust the campaign feed itself?"**
 Every change to `extras.json` on `main` is signed with sigstore
 keyless OIDC and logged to the public Rekor transparency log. See

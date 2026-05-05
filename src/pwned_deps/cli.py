@@ -45,6 +45,8 @@ from pwned_deps.parsers.base import Lockfile, ParseError
 from pwned_deps.report.json_out import render_json
 from pwned_deps.report.sarif import render_sarif
 from pwned_deps.report.text import ScanReport, render_text
+from pwned_deps.watch import Baseline
+from pwned_deps.watch import diff as watch_diff
 
 # Map known lockfile filenames to their parser entry-point.
 _DETECTORS: list[tuple[str, object]] = [
@@ -314,6 +316,187 @@ def audit_repo_cmd(
     if hits:
         ctx.exit(2)
     ctx.exit(0)
+
+
+@main.command()
+@click.argument(
+    "paths",
+    nargs=-1,
+    required=True,
+    type=click.Path(exists=True, path_type=Path),
+)
+@click.option(
+    "--baseline",
+    "baseline_path",
+    type=click.Path(path_type=Path),
+    required=True,
+    help="Baseline file. Created on first run; compared against on subsequent runs.",
+)
+@click.option(
+    "--update-baseline",
+    is_flag=True,
+    default=False,
+    help="Force-rewrite the baseline file with the current scan, then exit 0.",
+)
+@click.option(
+    "--offline",
+    is_flag=True,
+    default=False,
+    help="Skip network. Use cached database only.",
+)
+@click.option(
+    "--feed-file",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Optional extra campaign feed (JSON file).",
+)
+@click.option(
+    "--cache-ttl",
+    type=int,
+    default=24,
+    show_default=True,
+    help="Cache TTL in hours.",
+)
+@click.option(
+    "--cache-path",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Override the SQLite cache path.",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"], case_sensitive=False),
+    default="text",
+    show_default=True,
+    help="Output format for the alert report.",
+)
+@click.pass_context
+def watch(
+    ctx: click.Context,
+    paths: tuple[Path, ...],
+    baseline_path: Path,
+    update_baseline: bool,
+    offline: bool,
+    feed_file: Path | None,
+    cache_ttl: int,
+    cache_path: Path | None,
+    fmt: str,
+) -> None:
+    """Alert when an already-installed package becomes newly flagged.
+
+    Designed to run as a daily/scheduled CI job. Exit 1 ONLY when a
+    finding lands on a (ecosystem, name, version) that already
+    appeared in the baseline — i.e. something you already shipped is
+    now publicly compromised. Brand-new findings on packages not in
+    the baseline are intentionally NOT alerts (use ``check`` for that).
+
+    First-run behaviour: if --baseline does not exist, write it from
+    the current lockfile contents and exit 0 with a message.
+    """
+
+    # 1. Discover and parse lockfiles
+    targets: list[tuple[Path, object]] = []
+    for path in paths:
+        targets.extend(_discover_targets(path))
+    if not targets:
+        click.echo("watch: no recognised lockfiles found", err=True)
+        ctx.exit(0)
+
+    lockfiles: list[Lockfile] = []
+    for target_path, parse in targets:
+        try:
+            lockfiles.append(parse(target_path))
+        except ParseError as exc:
+            click.echo(f"watch: parse error: {exc}", err=True)
+            ctx.exit(3)
+
+    # 2. First run OR explicit refresh: write baseline and exit 0
+    if not baseline_path.exists() or update_baseline:
+        new_baseline = Baseline.from_lockfiles(
+            lockfiles, tool_version=pwned_deps.__version__
+        )
+        new_baseline.write(baseline_path)
+        click.echo(
+            f"watch: baseline {'updated' if update_baseline else 'created'} at "
+            f"{baseline_path} ({len(new_baseline.packages)} packages)"
+        )
+        ctx.exit(0)
+
+    # 3. Load existing baseline
+    try:
+        baseline = Baseline.read(baseline_path)
+    except (ValueError, OSError) as exc:
+        click.echo(f"watch: cannot read baseline {baseline_path}: {exc}", err=True)
+        ctx.exit(3)
+
+    # 4. Scan and diff against baseline
+    extras = _load_extras(feed_file)
+    cache = _open_cache(cache_path, cache_ttl)
+    reports: list[ScanReport] = [ScanReport(lockfile=lf, findings=[]) for lf in lockfiles]
+    try:
+        with OsvClient(cache=cache, offline=offline) as osv:
+            matcher = Matcher(osv_client=osv, extras=extras)
+            for report in reports:
+                report.findings = matcher.match(report.lockfile)
+    finally:
+        if cache is not None:
+            cache.close()
+
+    hits = watch_diff(reports, baseline)
+
+    # 5. Render
+    if fmt == "json":
+        import json as _json
+
+        payload = {
+            "schema_version": "1.0",
+            "command": "watch",
+            "tool": {"name": "pwned-deps", "version": pwned_deps.__version__},
+            "baseline_path": str(baseline_path),
+            "baseline_generated_at": baseline.generated_at,
+            "baseline_package_count": len(baseline.packages),
+            "alerts": [
+                {
+                    "ecosystem": h.package.ecosystem.value,
+                    "name": h.package.name,
+                    "version": h.package.version or "",
+                    "advisory_id": h.finding.advisory.id,
+                    "is_malicious": h.finding.is_malicious,
+                    "campaign_name": h.finding.campaign_name,
+                }
+                for h in hits
+            ],
+            "summary": {
+                "alert_count": len(hits),
+            },
+        }
+        click.echo(_json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        if not hits:
+            click.echo(
+                f"watch: OK — {len(baseline.packages)} baseline packages, "
+                f"no new findings since {baseline.generated_at}"
+            )
+        else:
+            click.echo(
+                f"watch: ALERT — {len(hits)} package(s) in your baseline "
+                f"are now flagged:"
+            )
+            for h in hits:
+                marker = "MALICIOUS" if h.finding.is_malicious else "VULN"
+                campaign = (
+                    f" — {h.finding.campaign_name}"
+                    if h.finding.campaign_name
+                    else ""
+                )
+                click.echo(
+                    f"  [{marker}] {h.package.ecosystem.value}:"
+                    f"{h.package.name}@{h.package.version} "
+                    f"({h.finding.advisory.id}){campaign}"
+                )
+
+    ctx.exit(1 if hits else 0)
 
 
 def _hit_to_json(hit: FileHit, *, root: Path) -> dict[str, object]:

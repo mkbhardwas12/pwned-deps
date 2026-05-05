@@ -33,7 +33,7 @@ published malicious versions.
 | **Inputs**            | Lockfiles (npm, PyPI, Maven, Cargo, Go, RubyGems) — never source, never tarballs |
 | **Data sources**      | [OSV.dev](https://osv.dev) public API + curated `extras.json` campaign feed (signed, sigstore + Rekor) |
 | **Outputs**           | Coloured terminal report, JSON, SARIF (GitHub Code Scanning) |
-| **Two commands**      | `pwned-deps check <lockfile>` (lockfile match) · `pwned-deps audit-repo <dir>` (forensic file-IoC scan) |
+| **Three commands**    | `pwned-deps check <lockfile>` (one-shot scan) · `pwned-deps audit-repo <dir>` (forensic file-IoC scan) · `pwned-deps watch <lockfile> --baseline <file>` (daily baseline + delta alert) |
 | **Failure mode**      | Exit `1` on confirmed compromise — wire that to your CI gate |
 | **Network footprint** | One host: `api.osv.dev`. No telemetry. Offline mode supported. |
 | **Trust model**       | Apache-2.0, SLSA L3 build provenance, OIDC-only PyPI publishing, locked container CI |
@@ -220,6 +220,42 @@ Exit codes:
 | `1`  | At least one MAL-* / EXTRA-* hit (compromised package) |
 | `2`  | At least one HIGH/CRITICAL CVE hit (no malicious hits) |
 | `3`  | Parse error                            |
+
+## Watch mode (the recurring-value workflow)
+
+`check` answers *"is anything bad in my lockfile right now?"*. **Watch
+mode** answers the question that matters every other day:
+
+> *"Did anything I already have installed become flagged overnight?"*
+
+The first run records a baseline (the `(ecosystem, name, version)`
+tuples currently in your lockfile). Every run after that compares
+fresh advisory data against the baseline and exits **1** only when a
+package that was *already* in your baseline is now publicly flagged.
+Brand-new findings on packages you don't depend on don't fire.
+
+```bash
+# Day 0 — record the baseline
+pwned-deps watch ./package-lock.json --baseline .pwned-deps-baseline.json
+# → "watch: baseline created at ... (47 packages)"  (exit 0)
+
+# Day 1..N — run nightly in CI; exit 1 only if something you ship is now compromised
+pwned-deps watch ./package-lock.json --baseline .pwned-deps-baseline.json --offline
+# → "watch: OK — 47 baseline packages, no new findings"   (exit 0)
+# … or:
+# → "watch: ALERT — 1 package(s) in your baseline are now flagged:
+#     [MALICIOUS] npm:event-stream@3.3.6 (EXTRA-2018-0001) — event-stream / flatmap-stream credential stealer"
+#   (exit 1)
+
+# Re-baseline after a deliberate dependency upgrade
+pwned-deps watch . --baseline .pwned-deps-baseline.json --update-baseline
+```
+
+The baseline file is plain JSON, contains no machine-identifying data
+(only `(ecosystem, name, version)` triples), and is safe to commit
+to your repo so every contributor + CI runner shares one source of
+truth. Pair with a nightly GitHub Actions cron — three lines of YAML
+and you have a same-day signal for every campaign that lands.
 
 ## Supported ecosystems
 

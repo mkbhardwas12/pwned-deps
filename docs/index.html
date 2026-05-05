@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pwned-deps — drop your lockfile in, find out if you're pwned</title>
+<meta name="description" content="Multi-ecosystem CLI that scans developer lockfiles against OSV.dev plus a curated supply-chain campaign feed. Apache-2.0, SLSA Level 3, OIDC publishing.">
+<style>
+  :root { --fg:#0f172a; --muted:#475569; --bg:#ffffff; --card:#f8fafc; --accent:#0369a1; --bad:#dc2626; --good:#16a34a; --border:#e2e8f0; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg); }
+  header { background:linear-gradient(135deg,#0f172a,#1e293b); color:#f8fafc; padding:3rem 1.5rem 2.5rem; }
+  header .wrap { max-width:960px; margin:0 auto; }
+  header h1 { margin:0 0 .5rem; font-size:2.25rem; letter-spacing:-.02em; }
+  header p.sub { margin:0 0 1.5rem; color:#cbd5e1; font-size:1.1rem; }
+  header code.install { display:inline-block; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); padding:.5rem .9rem; border-radius:6px; font-size:1.05rem; color:#f8fafc; }
+  header .badges { margin-top:1.25rem; display:flex; flex-wrap:wrap; gap:.5rem; }
+  header .badges img { height:20px; }
+  main { max-width:960px; margin:0 auto; padding:2.5rem 1.5rem 3rem; }
+  h2 { margin-top:2.5rem; font-size:1.4rem; letter-spacing:-.01em; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1rem; margin-top:1rem; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:1rem 1.1rem; }
+  .card h3 { margin:0 0 .25rem; font-size:.95rem; color:var(--accent); }
+  .card p { margin:0; color:var(--muted); font-size:.92rem; }
+  a { color:var(--accent); }
+  .links { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1rem; }
+  .links a { display:inline-block; padding:.5rem .9rem; background:var(--card); border:1px solid var(--border); border-radius:6px; text-decoration:none; font-size:.92rem; }
+  .links a:hover { background:#eef2f6; }
+  img.demo { max-width:100%; border:1px solid var(--border); border-radius:8px; margin-top:1rem; }
+  footer { border-top:1px solid var(--border); margin-top:3rem; padding:1.5rem 0; color:var(--muted); font-size:.85rem; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>pwned-deps</h1>
+    <p class="sub">Drop your lockfile in. Get a red/green answer in 5 seconds. <br>npm · PyPI · Maven · Cargo · Go · RubyGems.</p>
+    <code class="install">pipx install pwned-deps</code>
+    <div class="badges">
+      <a href="https://pypi.org/project/pwned-deps/"><img alt="PyPI" src="https://img.shields.io/pypi/v/pwned-deps.svg"></a>
+      <a href="https://github.com/mkbhardwas12/pwned-deps/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/mkbhardwas12/pwned-deps/actions/workflows/ci.yml/badge.svg"></a>
+      <a href="https://slsa.dev"><img alt="SLSA Level 3" src="https://slsa.dev/images/gh-badge-level3.svg"></a>
+      <a href="https://github.com/mkbhardwas12/pwned-deps/blob/main/LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg"></a>
+    </div>
+  </div>
+</header>
+<main>
+  <h2>What it does</h2>
+  <p>pwned-deps takes a lockfile (<code>package-lock.json</code>, <code>requirements.txt</code>, <code>pom.xml</code>, <code>Cargo.lock</code>, <code>go.sum</code>, <code>Gemfile.lock</code>, and friends) and tells you in seconds whether you've installed a package version that's publicly flagged as compromised — supply-chain malware, account hijacks, retroactively trojanised releases. Backed by <a href="https://osv.dev">OSV.dev</a> plus a curated, source-cited campaign feed for incidents that are too fresh for upstream advisories.</p>
+
+  <div class="grid">
+    <div class="card"><h3>Zero infrastructure</h3><p>Single CLI. No server, no database, no API key. Works fully offline with bundled feed.</p></div>
+    <div class="card"><h3>SLSA Level 3</h3><p>Signed wheels with build provenance. OIDC publishing — no long-lived PyPI tokens.</p></div>
+    <div class="card"><h3>Multi-ecosystem</h3><p>Six lockfile formats out of the box. Adding a parser is ~80 lines.</p></div>
+    <div class="card"><h3>CI-first</h3><p>One-line GitHub Action, sticky PR-comment bot, pre-commit hook, GitLab snippet.</p></div>
+  </div>
+
+  <h2>Try the dashboard</h2>
+  <p>The <code>pwned-deps report</code> subcommand folds many CI scan artifacts into a single self-contained HTML page — KPIs, per-campaign rollup, filterable findings table. No JS framework, no telemetry, no server. Drop into S3 / GitHub Pages / open locally.</p>
+  <p><a href="assets/demo-dashboard.html"><strong>→ Open the live demo dashboard</strong></a> (5-repo "ACME Corp" sample)</p>
+  <p><a href="assets/demo-dashboard.html"><img class="demo" src="assets/demo-dashboard.png" alt="Screenshot of the org-wide pwned-deps HTML dashboard for 5 repos showing KPI cards, scans table, campaign rollup, and findings table"></a></p>
+
+  <h2>Quick links</h2>
+  <div class="links">
+    <a href="https://github.com/mkbhardwas12/pwned-deps">GitHub repo</a>
+    <a href="https://pypi.org/project/pwned-deps/">PyPI page</a>
+    <a href="https://github.com/mkbhardwas12/pwned-deps/releases/tag/v0.1.0">Release notes (v0.1.0)</a>
+    <a href="https://github.com/mkbhardwas12/pwned-deps/blob/main/README.md">Full README</a>
+    <a href="https://github.com/mkbhardwas12/pwned-deps/blob/main/CHANGELOG.md">Changelog</a>
+    <a href="https://github.com/mkbhardwas12/pwned-deps/blob/main/SECURITY.md">Security policy</a>
+    <a href="https://github.com/mkbhardwas12/pwned-deps/blob/main/CONTRIBUTING.md">Contributing</a>
+  </div>
+</main>
+<footer>
+  Apache-2.0 · SLSA L3 · No telemetry · No analytics on this page.
+</footer>
+</body>
+</html>

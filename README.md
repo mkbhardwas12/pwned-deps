@@ -516,8 +516,9 @@ pwned-deps report scans/*.json -o dashboard.html --title "ACME · supply chain"
 ![dashboard preview](docs/assets/demo-dashboard.png)
 
 > **Click to interact:** the same dashboard rendered for a 5-repo "ACME Corp" demo
-> is committed at [`docs/assets/demo-dashboard.html`](docs/assets/demo-dashboard.html) — open it
-> locally to try the filter chips and see the per-campaign rollup.
+> is hosted live at <https://mkbhardwas12.github.io/pwned-deps/assets/demo-dashboard.html>
+> (also committed at [`docs/assets/demo-dashboard.html`](docs/assets/demo-dashboard.html))
+> — try the filter chips and see the per-campaign rollup.
 
 The HTML file is self-contained — inline CSS, no external assets,
 no telemetry, no JavaScript dependencies (one tiny vanilla-JS filter

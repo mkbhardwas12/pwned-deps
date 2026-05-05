@@ -32,7 +32,7 @@ inputs:
       Empty (default)  - `pip install pwned-deps` (latest from PyPI).
       "1.2.3"          - `pip install pwned-deps==1.2.3` (pinned).
       "from-source"    - install the action's own checkout via
-                         `pip install -e ${{ github.action_path }}`.
+                         pip install -e <action checkout path>.
                          Used by this repo's action self-test before
                          first PyPI publish, and by forks doing local
                          development against an unreleased revision.

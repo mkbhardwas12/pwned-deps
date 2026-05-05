@@ -189,6 +189,31 @@ pip install --user pwned-deps
 
 Python 3.10+ on macOS, Linux, or Windows.
 
+## See it in action
+
+> Real terminal output — captured with `tools/capture_demos.py` against
+> the bundled fixtures, not mocked. Reproduce locally with
+> `pwned-deps check tests/fixtures/npm/mini-shaihulud.lock.json`.
+
+| Scenario | Screenshot |
+|---|---|
+| **`check`** on a clean lockfile | ![clean scan](docs/assets/demo-check-clean.svg) |
+| **`check`** on the historic event-stream/flatmap-stream campaign (2018) | ![event-stream scan](docs/assets/demo-check-event-stream.svg) |
+| **`check`** on Mini Shai-Hulud (SAP CAP, April 2026) — full IoC payload | ![shai-hulud scan](docs/assets/demo-check-shaihulud.svg) |
+| **`watch`** — Day 0 baseline, quiet day, alert day | ![watch demo](docs/assets/demo-watch.svg) |
+| **PR comment** rendered by GitHub on a pull request | ![pr comment markdown](docs/assets/demo-pr-comment-source.svg) |
+
+### Benchmark
+
+Match-time on a 2024 MacBook Pro (M-series), offline mode:
+
+![benchmark](docs/assets/benchmark.svg)
+
+Matcher work is sub-millisecond per lockfile against the bundled
+extras feed; first OSV query adds the network round-trip and is
+cached on disk for 24h. See [docs/assets/benchmark.md](docs/assets/benchmark.md)
+for the raw numbers.
+
 ## Quick usage
 
 ```bash

@@ -1,0 +1,116 @@
+<svg class="rich-terminal" viewBox="0 0 1360 416.0" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Regular"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
+        font-style: normal;
+        font-weight: 400;
+    }
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Bold"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
+        font-style: bold;
+        font-weight: 700;
+    }
+
+    .terminal-418832491-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-418832491-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-418832491-r1 { fill: #c5c8c6;font-weight: bold }
+.terminal-418832491-r2 { fill: #c5c8c6 }
+.terminal-418832491-r3 { fill: #868887 }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-418832491-clip-terminal">
+      <rect x="0" y="0" width="1341.0" height="365.0" />
+    </clipPath>
+    <clipPath id="terminal-418832491-line-0">
+    <rect x="0" y="1.5" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-1">
+    <rect x="0" y="25.9" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-2">
+    <rect x="0" y="50.3" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-3">
+    <rect x="0" y="74.7" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-4">
+    <rect x="0" y="99.1" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-5">
+    <rect x="0" y="123.5" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-6">
+    <rect x="0" y="147.9" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-7">
+    <rect x="0" y="172.3" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-8">
+    <rect x="0" y="196.7" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-9">
+    <rect x="0" y="221.1" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-10">
+    <rect x="0" y="245.5" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-11">
+    <rect x="0" y="269.9" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-12">
+    <rect x="0" y="294.3" width="1342" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-418832491-line-13">
+    <rect x="0" y="318.7" width="1342" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1358" height="414" rx="8"/><text class="terminal-418832491-title" fill="#c5c8c6" text-anchor="middle" x="679" y="27">pwned-deps&#160;benchmark</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-418832491-clip-terminal)">
+    
+    <g class="terminal-418832491-matrix">
+    <text class="terminal-418832491-r1" x="0" y="20" textLength="719.8" clip-path="url(#terminal-418832491-line-0)">pwned-deps&#160;benchmark&#160;—&#160;offline&#160;mode&#160;(cached&#160;+&#160;bundled&#160;feed)</text><text class="terminal-418832491-r2" x="1342" y="20" textLength="12.2" clip-path="url(#terminal-418832491-line-0)">
+</text><text class="terminal-418832491-r3" x="0" y="44.4" textLength="512.4" clip-path="url(#terminal-418832491-line-1)">pwned-deps&#160;0.1.0&#160;·&#160;darwin&#160;·&#160;python&#160;3.12.13</text><text class="terminal-418832491-r2" x="1342" y="44.4" textLength="12.2" clip-path="url(#terminal-418832491-line-1)">
+</text><text class="terminal-418832491-r2" x="1342" y="68.8" textLength="12.2" clip-path="url(#terminal-418832491-line-2)">
+</text><text class="terminal-418832491-r1" x="0" y="93.2" textLength="780.8" clip-path="url(#terminal-418832491-line-3)">fixture&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;pkgs&#160;&#160;&#160;time(ms)&#160;&#160;&#160;pkgs/sec</text><text class="terminal-418832491-r2" x="1342" y="93.2" textLength="12.2" clip-path="url(#terminal-418832491-line-3)">
+</text><text class="terminal-418832491-r3" x="0" y="117.6" textLength="793" clip-path="url(#terminal-418832491-line-4)">─────────────────────────────────────────────────────────────────</text><text class="terminal-418832491-r2" x="1342" y="117.6" textLength="12.2" clip-path="url(#terminal-418832491-line-4)">
+</text><text class="terminal-418832491-r2" x="0" y="142" textLength="768.6" clip-path="url(#terminal-418832491-line-5)">npm&#160;clean&#160;(1&#160;pkg)&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;1&#160;&#160;&#160;&#160;&#160;&#160;0.09&#160;&#160;&#160;&#160;&#160;&#160;11555</text><text class="terminal-418832491-r2" x="1342" y="142" textLength="12.2" clip-path="url(#terminal-418832491-line-5)">
+</text><text class="terminal-418832491-r2" x="0" y="166.4" textLength="768.6" clip-path="url(#terminal-418832491-line-6)">npm&#160;Mini&#160;Shai-Hulud&#160;(1&#160;pkg,&#160;2&#160;hits)&#160;&#160;&#160;&#160;&#160;&#160;1&#160;&#160;&#160;&#160;&#160;&#160;0.06&#160;&#160;&#160;&#160;&#160;&#160;16961</text><text class="terminal-418832491-r2" x="1342" y="166.4" textLength="12.2" clip-path="url(#terminal-418832491-line-6)">
+</text><text class="terminal-418832491-r2" x="0" y="190.8" textLength="768.6" clip-path="url(#terminal-418832491-line-7)">npm&#160;event-stream&#160;historic&#160;(2&#160;pkgs)&#160;&#160;&#160;&#160;&#160;&#160;&#160;2&#160;&#160;&#160;&#160;&#160;&#160;0.09&#160;&#160;&#160;&#160;&#160;&#160;21286</text><text class="terminal-418832491-r2" x="1342" y="190.8" textLength="12.2" clip-path="url(#terminal-418832491-line-7)">
+</text><text class="terminal-418832491-r2" x="0" y="215.2" textLength="768.6" clip-path="url(#terminal-418832491-line-8)">npm&#160;synthetic-malicious&#160;(3&#160;pkgs)&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;1&#160;&#160;&#160;&#160;&#160;&#160;0.05&#160;&#160;&#160;&#160;&#160;&#160;19262</text><text class="terminal-418832491-r2" x="1342" y="215.2" textLength="12.2" clip-path="url(#terminal-418832491-line-8)">
+</text><text class="terminal-418832491-r2" x="0" y="239.6" textLength="768.6" clip-path="url(#terminal-418832491-line-9)">npm&#160;v3&#160;lockfile&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;2&#160;&#160;&#160;&#160;&#160;&#160;0.06&#160;&#160;&#160;&#160;&#160;&#160;32389</text><text class="terminal-418832491-r2" x="1342" y="239.6" textLength="12.2" clip-path="url(#terminal-418832491-line-9)">
+</text><text class="terminal-418832491-r2" x="0" y="264" textLength="768.6" clip-path="url(#terminal-418832491-line-10)">pypi&#160;requirements.txt&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;8&#160;&#160;&#160;&#160;&#160;&#160;0.08&#160;&#160;&#160;&#160;&#160;101587</text><text class="terminal-418832491-r2" x="1342" y="264" textLength="12.2" clip-path="url(#terminal-418832491-line-10)">
+</text><text class="terminal-418832491-r2" x="0" y="288.4" textLength="768.6" clip-path="url(#terminal-418832491-line-11)">maven&#160;pom.xml&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;3&#160;&#160;&#160;&#160;&#160;&#160;0.07&#160;&#160;&#160;&#160;&#160;&#160;42278</text><text class="terminal-418832491-r2" x="1342" y="288.4" textLength="12.2" clip-path="url(#terminal-418832491-line-11)">
+</text><text class="terminal-418832491-r2" x="1342" y="312.8" textLength="12.2" clip-path="url(#terminal-418832491-line-12)">
+</text><text class="terminal-418832491-r3" x="0" y="337.2" textLength="951.6" clip-path="url(#terminal-418832491-line-13)">All&#160;numbers&#160;are&#160;best-of-3&#160;wall&#160;time&#160;of&#160;matcher.match()&#160;over&#160;a&#160;parsed&#160;lockfile,</text><text class="terminal-418832491-r2" x="1342" y="337.2" textLength="12.2" clip-path="url(#terminal-418832491-line-13)">
+</text><text class="terminal-418832491-r3" x="0" y="361.6" textLength="768.6" clip-path="url(#terminal-418832491-line-14)">offline&#160;(cache&#160;+&#160;bundled&#160;extras&#160;feed);&#160;excludes&#160;parse&#160;+&#160;render.</text><text class="terminal-418832491-r2" x="1342" y="361.6" textLength="12.2" clip-path="url(#terminal-418832491-line-14)">
+</text>
+    </g>
+    </g>
+</svg>

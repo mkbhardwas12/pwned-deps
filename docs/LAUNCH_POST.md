@@ -75,12 +75,17 @@ maintainers can tighten it the moment a primary source confirms.
 **A day later — April 30, 2026** — the same operator trojanised three
 more package versions ([Wiz](https://www.wiz.io/blog/mini-shai-hulud-supply-chain-sap-npm)):
 
-- `intercom-client@7.0.5`
-- `lightning@2.6.2`
-- `lightning@2.6.3`
+- `intercom-client@7.0.5` *(npm — Intercom's official client SDK)*
+- `lightning@2.6.2` *(PyPI — PyTorch Lightning)*
+- `lightning@2.6.3` *(PyPI — PyTorch Lightning)*
 
-Same shared C2 (`zero.masscan.cloud`) and a fallback channel via GitHub
-commits keyed `beautifulcastle`. The April-30 payload had been extended
+The campaign crosses ecosystems: a Python project pinning
+`lightning==2.6.2` is just as exposed as an npm project pinning
+`intercom-client@7.0.5`. `pwned-deps`'s extras feed flags the
+ecosystem on each individual `(name, version)` entry, so a
+`requirements.txt` lookup hits the same campaign record an npm
+lockfile would. Same shared C2 (`zero.masscan.cloud`) and the same
+fallback channel via GitHub commits keyed `beautifulcastle`. The April-30 payload had been extended
 to target HashiCorp Vault tokens and Kubernetes ServiceAccounts, on top
 of the original AWS / GitHub / npm theft.
 

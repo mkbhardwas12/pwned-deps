@@ -1,0 +1,101 @@
+name: Action self-test
+
+# Validates action.yml end-to-end against the local checkout. Catches
+# composite-step typos, input/output wiring, fail-on semantics, and
+# SARIF-upload integration BEFORE the action is tagged on the
+# Marketplace.
+#
+# Uses `version: from-source` so the action installs `pip install -e .`
+# from this same checkout — no PyPI dependency, runs on every PR.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "action.yml"
+      - "src/**"
+      - "tests/fixtures/npm/**"
+      - "tests/fixtures/extras/**"
+      - ".github/workflows/action-selftest.yml"
+  pull_request:
+    paths:
+      - "action.yml"
+      - "src/**"
+      - "tests/fixtures/npm/**"
+      - "tests/fixtures/extras/**"
+      - ".github/workflows/action-selftest.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write  # for SARIF upload (only fires on default branch)
+
+jobs:
+  clean-fixture-passes:
+    name: clean lockfile -> exit 0
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run action against a clean fixture
+        id: scan
+        uses: ./
+        with:
+          path: tests/fixtures/npm/clean.lock.json
+          version: from-source
+          fail-on: compromised
+          offline: "true"
+          upload-sarif: "false"
+      - name: Assert exit code 0
+        run: |
+          rc="${{ steps.scan.outputs.exit-code }}"
+          if [ "$rc" != "0" ]; then
+            echo "expected 0, got $rc"
+            exit 1
+          fi
+
+  malicious-fixture-fails:
+    name: Mini Shai-Hulud fixture -> exit 1, action fails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run action against the malicious fixture (must FAIL)
+        id: scan
+        continue-on-error: true
+        uses: ./
+        with:
+          path: tests/fixtures/npm/mini-shaihulud.lock.json
+          version: from-source
+          fail-on: compromised
+          offline: "true"
+          upload-sarif: "false"
+      - name: Assert action step failed AND exit-code output is 1
+        run: |
+          if [ "${{ steps.scan.outcome }}" != "failure" ]; then
+            echo "expected the scan step to FAIL on the malicious fixture, got outcome=${{ steps.scan.outcome }}"
+            exit 1
+          fi
+          if [ "${{ steps.scan.outputs.exit-code }}" != "1" ]; then
+            echo "expected exit-code output=1, got ${{ steps.scan.outputs.exit-code }}"
+            exit 1
+          fi
+
+  fail-on-never-does-not-fail:
+    name: fail-on=never -> never fails the step
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run action against malicious fixture with fail-on=never
+        id: scan
+        uses: ./
+        with:
+          path: tests/fixtures/npm/mini-shaihulud.lock.json
+          version: from-source
+          fail-on: never
+          offline: "true"
+          upload-sarif: "false"
+      - name: Assert step succeeded but exit-code output is still 1
+        run: |
+          if [ "${{ steps.scan.outputs.exit-code }}" != "1" ]; then
+            echo "expected exit-code output=1, got ${{ steps.scan.outputs.exit-code }}"
+            exit 1
+          fi

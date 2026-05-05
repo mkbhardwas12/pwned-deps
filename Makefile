@@ -14,6 +14,7 @@
 #   make release-rehearsal    Run the exact pre-publish gate chain release.yml runs
 #   make pin-base             Capture current python:3.12-slim digest into base-image.lock
 #   make pin-deps             Regenerate requirements.lock from requirements.in with hashes
+#   make demo-gif             Render docs/demo.gif from demo.tape via vhs (Docker)
 #   make clean                Remove the dev image
 #
 # Locked-down container flags applied to test/lint targets:
@@ -53,7 +54,7 @@ RUN_FLAGS_LOCKED := --rm --network none --read-only \
 # regenerating the lockfile and adding deps).
 RUN_FLAGS_DEV := --rm -it -v $(PWD):/work -w /work
 
-.PHONY: help build shell test verify-safety verify-safety-self-test lint release-rehearsal smoke-local pin-base pin-deps clean
+.PHONY: help build shell test verify-safety verify-safety-self-test lint release-rehearsal smoke-local pin-base pin-deps demo-gif clean
 
 help:
 	@echo "pwned-deps Makefile targets:"
@@ -202,6 +203,13 @@ pin-deps:
 		cp /tmp/requirements.lock /work/requirements.lock'
 	@echo "Wrote $$(wc -l < requirements.lock) lines to requirements.lock"
 	@echo "Now: rerun 'make build' to verify the hashes install cleanly."
+
+# Render docs/demo.gif from demo.tape using vhs in a one-off Docker
+# image. No host installs (Docker is the only prerequisite).
+# The thin image extends ghcr.io/charmbracelet/vhs with python3 + a
+# local install of pwned-deps from this checkout.
+demo-gif:
+	bash tools/render_demo_gif.sh
 
 clean:
 	-docker image rm $(IMAGE) 2>/dev/null || true

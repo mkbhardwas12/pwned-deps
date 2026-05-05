@@ -27,7 +27,15 @@ inputs:
     required: false
     default: "."
   version:
-    description: pwned-deps version to install (PyPI). Defaults to the latest release.
+    description: |
+      Which pwned-deps to install.
+      Empty (default)  - `pip install pwned-deps` (latest from PyPI).
+      "1.2.3"          - `pip install pwned-deps==1.2.3` (pinned).
+      "from-source"    - install the action's own checkout via
+                         `pip install -e ${{ github.action_path }}`.
+                         Used by this repo's action self-test before
+                         first PyPI publish, and by forks doing local
+                         development against an unreleased revision.
     required: false
     default: ""
   fail-on:
@@ -70,11 +78,20 @@ runs:
     - name: Install pwned-deps
       shell: bash
       run: |
-        if [ -n "${{ inputs.version }}" ]; then
-          pip install --quiet "pwned-deps==${{ inputs.version }}"
-        else
-          pip install --quiet pwned-deps
-        fi
+        case "${{ inputs.version }}" in
+          "")
+            pip install --quiet pwned-deps
+            ;;
+          "from-source")
+            # Install the action's own checkout. The action self-test
+            # workflow (.github/workflows/action-selftest.yml) uses this
+            # to validate action.yml end-to-end before tagging.
+            pip install --quiet -e "${{ github.action_path }}"
+            ;;
+          *)
+            pip install --quiet "pwned-deps==${{ inputs.version }}"
+            ;;
+        esac
         pwned-deps version
 
     - name: Scan

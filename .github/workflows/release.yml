@@ -70,7 +70,12 @@ jobs:
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
     with:
       base64-subjects: ${{ needs.build.outputs.hashes }}
-      upload-assets: true
+      # Do NOT have the SLSA generator attach provenance to a release
+      # itself — the github-release job (below) is the single point of
+      # truth for what ends up on the Release page. With upload-assets:
+      # true the generator's "final" step exits 27 when no Release
+      # exists yet at provenance time.
+      upload-assets: false
 
   pypi-publish:
     name: PyPI publish (OIDC trusted publishing)
@@ -104,8 +109,20 @@ jobs:
         with:
           name: dist
           path: dist
+      - name: Download SLSA provenance
+        uses: actions/download-artifact@v4
+        with:
+          # The SLSA generator publishes its provenance under an
+          # artifact whose name matches the .intoto.jsonl filename.
+          # Using a pattern + merge-multiple lets us pick it up
+          # without hard-coding the artifact name.
+          pattern: "*.intoto.jsonl*"
+          path: provenance
+          merge-multiple: true
       - name: Create release with auto-notes
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: dist/*
+          files: |
+            dist/*
+            provenance/*

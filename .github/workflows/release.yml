@@ -76,6 +76,13 @@ jobs:
       # true the generator's "final" step exits 27 when no Release
       # exists yet at provenance time.
       upload-assets: false
+      # Workaround for slsa-github-generator v2.0.0: when upload-assets
+      # is false, the optional upload-assets job is SKIPPED, and the
+      # "final" aggregator job reads needs.upload-assets.outputs.success
+      # as empty -> SUCCESS=false -> exit 27 even though the generator
+      # job itself completed and uploaded the provenance artifact.
+      # continue-on-error tells "final" to swallow that and pass.
+      continue-on-error: true
 
   pypi-publish:
     name: PyPI publish (OIDC trusted publishing)

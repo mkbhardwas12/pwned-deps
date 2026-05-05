@@ -48,3 +48,6 @@ base-image.lock
 
 # pwned-deps local cache
 .pwned-deps-cache/
+
+# SARIF outputs from local demo / smoke runs (CI uploads its own)
+pwned-deps.sarif

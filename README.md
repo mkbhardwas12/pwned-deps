@@ -7,8 +7,11 @@
 > trojanised releases — across npm, PyPI, Maven, Cargo, Go, RubyGems.
 
 <!-- TODO(logo): place a 256x256 PNG at docs/logo.png and reference it here. -->
-<!-- TODO(demo): record with `vhs demo.tape`, commit the resulting docs/demo.gif. -->
-<!-- ![pwned-deps demo](docs/demo.gif) -->
+
+![pwned-deps demo](docs/demo.gif)
+
+> Re-render the demo any time the CLI's output changes:
+> `make demo-gif` (Docker; no host installs).
 
 [![CI](https://github.com/mkbhardwas12/pwned-deps/actions/workflows/ci.yml/badge.svg)](https://github.com/mkbhardwas12/pwned-deps/actions/workflows/ci.yml)
 [![PyPI version](https://img.shields.io/pypi/v/pwned-deps.svg)](https://pypi.org/project/pwned-deps/)
@@ -590,20 +593,43 @@ repository, by the tagged commit, with no human-in-the-middle.
 
 ## Comparison
 
-| Tool             | Multi-ecosystem | Offline cache | MAL-* surfacing  | Open campaign feed | License |
-|------------------|-----------------|---------------|------------------|--------------------|---------|
-| `npm audit`      | npm only        | no            | partial          | no                 | open    |
-| `pip-audit`      | PyPI only       | partial       | partial          | no                 | open    |
-| `osv-scanner`    | yes (the bar)   | yes           | partial          | no                 | open    |
-| `socket` (paid)  | yes             | n/a           | yes              | yes (paid)         | mixed   |
-| **pwned-deps**   | yes             | yes           | first-class      | yes (open)         | Apache-2.0 |
+Honest, hyperlink-checkable. Every claim should be verifiable from the
+linked tool's public docs. **Submit a PR if any cell is wrong** — we'd
+rather correct than mislead.
 
-`osv-scanner` (Google) is excellent and well-resourced. If your
-priority is breadth of ecosystems and zero project bias, it remains a
-strong default. `pwned-deps` adds: a friendlier red/green CLI UX, MAL-*
-as a first-class concept (always surfaced regardless of CVSS), and an
-open `extras.json` feed for incidents OSV has not yet ingested. We do
-not pretend to replace `osv-scanner`.
+| Tool                                                         | Multi-ecosystem | Offline cache | Publisher signature check | MAL-* surfacing | Open campaign feed       | License                          |
+|--------------------------------------------------------------|-----------------|---------------|---------------------------|-----------------|--------------------------|----------------------------------|
+| [`npm audit`](https://docs.npmjs.com/cli/v10/commands/npm-audit) | npm only        | no            | yes (`--audit-signatures`, npm 9+) | partial         | no                       | open (Artistic-2.0)              |
+| [`pip-audit`](https://github.com/pypa/pip-audit)             | PyPI only       | partial       | no                        | partial         | no                       | Apache-2.0                       |
+| [`osv-scanner`](https://github.com/google/osv-scanner)       | yes (the bar)   | yes           | no                        | partial         | no                       | Apache-2.0                       |
+| [`socket`](https://github.com/SocketDev/socket-cli)          | yes             | n/a (cloud)   | yes                       | yes             | yes (free + paid tiers)  | MIT (CLI), proprietary (cloud)   |
+| **pwned-deps**                                               | yes             | yes           | no (planned V1.x)         | first-class¹    | yes (Sigstore-signed)    | Apache-2.0                       |
+
+¹ MAL-\* and our `EXTRA-*` campaign IDs are always surfaced regardless
+of CVSS. Ships with **15 historic + recent campaigns** built in
+(event-stream 2018 → xz 2024 → tj-actions 2025 → Mini Shai-Hulud 2026).
+
+### Where each tool is the right answer
+
+- **[`osv-scanner`](https://github.com/google/osv-scanner)** is the
+  bar. Google-resourced, no project bias, container + filesystem
+  scanning. If you only run one tool, run that one.
+- **[`socket`](https://socket.dev)** has the deepest behavioural
+  analysis (it parses package source for risky API use). The free CLI
+  is enough for many teams; deeper insights are paid.
+- **[`pip-audit`](https://github.com/pypa/pip-audit)** is the
+  PyPA-blessed Python-only choice; integrates cleanly with `pip
+  freeze` workflows.
+- **[`npm audit`](https://docs.npmjs.com/cli/v10/commands/npm-audit)**
+  is already on every Node developer's machine. Run it with
+  `--audit-signatures` (npm 9+) for publisher-key verification.
+
+`pwned-deps` adds: a friendlier red/green CLI UX, MAL-\* as a
+first-class concept, the `audit-repo` forensic file scanner, and an
+open Sigstore-signed campaign feed for incidents OSV hasn't yet
+ingested. We don't pretend to replace any of the above; we're the
+tool you reach for at 2 a.m. when a fresh incident hits and you need
+a yes/no answer about your pipeline before the CVE is published.
 
 ## FAQ
 

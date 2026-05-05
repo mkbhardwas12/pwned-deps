@@ -217,17 +217,29 @@ def check(
     help="Override the SQLite cache path.",
 )
 def update(cache_path: Path | None) -> None:
-    """Refresh the local advisory cache.
+    """Initialise the local advisory cache (V1.x: full refresh planned).
 
-    The current implementation just touches the cache file (creates the
-    schema if missing). A more aggressive refresh — re-querying every
-    cached `(eco, pkg, ver)` — is a Step 10 follow-up.
+    In V0.1 this command initialises the SQLite cache file if it doesn't
+    exist yet and is otherwise a no-op. The cache is refreshed lazily by
+    `pwned-deps check`: any entry past its TTL (default 24h) is
+    re-fetched from OSV on the next scan.
+
+    A proactive refresh — re-querying every cached `(eco, pkg, ver)`
+    plus pulling the latest community campaigns from the upstream
+    `extras.json` — is planned for V1.x. Until then, `pwned-deps check`
+    is the right command to refresh stale findings.
     """
 
     target = cache_path or default_cache_path()
     target.parent.mkdir(parents=True, exist_ok=True)
     Cache(target).close()
     click.echo(f"cache initialised at {target}")
+    click.echo(
+        "note: V0.1 'update' only initialises the cache file. "
+        "Stale entries are re-fetched lazily by 'pwned-deps check' on the "
+        "next scan. A proactive refresh command is planned for V1.x.",
+        err=True,
+    )
 
 
 @main.command(name="report")

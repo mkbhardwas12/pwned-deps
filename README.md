@@ -20,6 +20,96 @@ installed a package version that's publicly flagged as compromised —
 supply-chain malware, abandoned-and-hijacked packages, retroactively
 published malicious versions.
 
+## At a glance
+
+|                       |                                                                 |
+|-----------------------|-----------------------------------------------------------------|
+| **What**              | A 5-second red/green answer to "is anything in my lockfile pwned?" |
+| **Who it's for**      | Application devs, SREs, AppSec / DFIR responders during an active incident |
+| **Inputs**            | Lockfiles (npm, PyPI, Maven, Cargo, Go, RubyGems) — never source, never tarballs |
+| **Data sources**      | [OSV.dev](https://osv.dev) public API + curated `extras.json` campaign feed (signed, sigstore + Rekor) |
+| **Outputs**           | Coloured terminal report, JSON, SARIF (GitHub Code Scanning) |
+| **Two commands**      | `pwned-deps check <lockfile>` (lockfile match) · `pwned-deps audit-repo <dir>` (forensic file-IoC scan) |
+| **Failure mode**      | Exit `1` on confirmed compromise — wire that to your CI gate |
+| **Network footprint** | One host: `api.osv.dev`. No telemetry. Offline mode supported. |
+| **Trust model**       | Apache-2.0, SLSA L3 build provenance, OIDC-only PyPI publishing, locked container CI |
+
+## Architecture
+
+The CLI is intentionally a thin matcher around two data sources. There
+is no service, no backend, no telemetry — your lockfile bytes never
+leave the machine running the command.
+
+```mermaid
+flowchart LR
+    subgraph User["Your machine / CI runner"]
+        LF["Lockfiles<br/>(package-lock.json,<br/>requirements.txt,<br/>Cargo.lock, ...)"]
+        REPO["Repo tree<br/>(for audit-repo)"]
+    end
+
+    subgraph CLI["pwned-deps CLI"]
+        P["Parsers<br/>(npm / pypi / maven /<br/>cargo / go / gem)"]
+        M["Matcher<br/>(version_match.py)"]
+        A["audit/repo.py<br/>(SHA-256 + path)"]
+        R["Renderers<br/>text / json / sarif"]
+    end
+
+    subgraph Data["Advisory data"]
+        OSV[("api.osv.dev<br/>public API")]
+        CACHE[("~/.cache/pwned-deps/<br/>osv.sqlite (24h TTL)")]
+        EX[("extras.json<br/>curated feed,<br/>sigstore-signed")]
+    end
+
+    LF --> P --> M
+    REPO --> A
+    M <--> CACHE
+    CACHE <-.refresh.-> OSV
+    M <-- iocs/file_iocs --> EX
+    A <-- file_iocs --> EX
+    M --> R
+    A --> R
+    R --> OUT["Terminal · JSON · SARIF<br/>exit 0/1/2/3"]
+```
+
+**How a scan works (happy path):**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Dev as Developer / CI
+    participant CLI as pwned-deps
+    participant Cache as Local SQLite cache
+    participant OSV as api.osv.dev
+    participant Feed as extras.json (bundled)
+
+    Dev->>CLI: pwned-deps check ./package-lock.json
+    CLI->>CLI: parse lockfile → list[(name, version, ecosystem)]
+    CLI->>Cache: lookup advisories (24h TTL)
+    alt cache miss / stale
+        CLI->>OSV: POST /v1/querybatch
+        OSV-->>CLI: advisories (CVE / GHSA / MAL-*)
+        CLI->>Cache: write
+    end
+    CLI->>Feed: lookup curated campaigns (EXTRA-*)
+    CLI->>CLI: match version ranges, dedupe by id
+    CLI-->>Dev: rendered report + exit code
+```
+
+**Module map (one file, one job):**
+
+| Path                                | Responsibility                                       |
+|-------------------------------------|------------------------------------------------------|
+| `src/pwned_deps/cli.py`             | Click command surface; `check` and `audit-repo`      |
+| `src/pwned_deps/parsers/*.py`       | One parser per ecosystem; pure text → tuples         |
+| `src/pwned_deps/advisory/osv_client.py` | OSV.dev HTTP client (httpx, batched)            |
+| `src/pwned_deps/advisory/cache.py`  | SQLite cache, TTL, offline mode                      |
+| `src/pwned_deps/advisory/matcher.py`| Severity + ID dedup; OSV ⨯ extras.json merge         |
+| `src/pwned_deps/advisory/version_match.py` | OSV range semantics (introduced / fixed / last_affected) |
+| `src/pwned_deps/advisory/extras.py` | Curated-feed loader; per-package ecosystem override  |
+| `src/pwned_deps/audit/repo.py`      | `audit-repo` — SHA-256 walk, file-IoC matching       |
+| `src/pwned_deps/extras_data/extras.json` | The campaign feed; sigstore-signed on `main`    |
+| `src/pwned_deps/report/{text,json_out,sarif}.py` | Three renderers, identical schema input |
+
 ## Why this exists
 
 When a supply-chain attack on npm/PyPI/Cargo lands, the first thing

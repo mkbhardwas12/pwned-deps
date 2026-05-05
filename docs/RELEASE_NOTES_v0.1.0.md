@@ -20,7 +20,8 @@ pwned-deps check ./package-lock.json
 
 Exit `1` if any compromised package is on disk, with the campaign
 name, exposure window, published SHA-256 of the bad tarball, and
-remediation list.
+remediation list. Then run `pwned-deps audit-repo .` to confirm
+whether the second-stage payload landed on disk as IDE persistence.
 
 ## What's in v0.1.0
 
@@ -61,6 +62,12 @@ where a primary source did not publish exact UTC stamps):
   end is a conservative upper bound from [SecurityBridge's](https://securitybridge.com/blog/a-mini-shai-hulud-has-appeared-when-the-npm-supply-chain-reaches-into-sap/)
   "roughly two to four hours" phrasing). Published `.tgz` SHA-256
   digests included per [Wiz](https://www.wiz.io/blog/mini-shai-hulud-supply-chain-sap-npm).
+  Ships **6 free-text IoCs** (rogue-repo signature, commit-message
+  prefix, C2 indicators) and **7 `file_iocs` entries** (the shared
+  `setup.mjs` dropper at `.claude/` and `.vscode/`, three
+  per-package `execution.js` SHA-256s, the `.claude/settings.json`
+  Claude Code SessionStart hook and `.vscode/tasks.json`
+  `Environment Setup` task with `runOn: folderOpen`).
 - **EXTRA-2026-0002 — Follow-on (intercom-client + lightning)** —
   cross-ecosystem campaign by the same operator: npm
   `intercom-client@7.0.5` plus **PyPI** `lightning@2.6.2` and
@@ -69,6 +76,36 @@ where a primary source did not publish exact UTC stamps):
   `zero.masscan.cloud`, fallback channel via GitHub commits keyed
   `beautifulcastle`. Payload extended to target Kubernetes
   ServiceAccount tokens and HashiCorp Vault secrets ([Wiz](https://www.wiz.io/blog/mini-shai-hulud-supply-chain-sap-npm)).
+
+The feed is **signed via Sigstore keyless OIDC** on every push to
+`main` that touches it ([sign-feed.yml](https://github.com/mkbhardwas12/pwned-deps/blob/main/.github/workflows/sign-feed.yml)).
+The Rekor transparency-log entry is the immutable trust artifact —
+any silent campaign removal is auditable. Verification recipe:
+[SECURITY.md → Verifying the campaign feed](https://github.com/mkbhardwas12/pwned-deps/blob/main/SECURITY.md).
+
+### Forensic file scanner — `audit-repo`
+
+```bash
+pwned-deps audit-repo .
+pwned-deps audit-repo /path/to/checkout --format json
+```
+
+Walks a directory tree, hashes every file under 50 MiB, matches
+against the campaign feed's `file_iocs[]` blocks. Skips
+`node_modules`, `.git`, `.venv`, build outputs, symlinks. Three
+match levels:
+
+| Match     | Confidence  | Exit |
+|-----------|-------------|------|
+| `sha256+path` | Highest — known-bad bytes at known-bad path | 1 |
+| `sha256`      | Confirmed — known-bad bytes anywhere | 1 |
+| `path`        | Suspect — known-persistence path, modified content | 2 |
+
+Use this **after** `check` has flagged a compromised lockfile, to
+confirm whether the second-stage payload landed on developer
+laptops or build runners as IDE persistence. JSON output carries a
+`command: "audit-repo"` discriminator so consumers can
+disambiguate from `check`'s JSON shape.
 
 ### CLI flags
 

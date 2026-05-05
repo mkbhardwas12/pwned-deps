@@ -181,7 +181,7 @@ exit=0
 [verify-safety] scanning src, tests for forbidden symbols...
 [verify-safety] OK — no forbidden symbols in src, tests
 docker run --rm --network none --read-only --tmpfs /tmp --tmpfs /home/appuser/.cache \
-    -v /Users/mkb/projects/pwned-deps:/work:ro -w /work -e PYTHONPATH=/work/src pwned-deps-dev \
+    -v $(PWD):/work:ro -w /work -e PYTHONPATH=/work/src pwned-deps-dev \
     python -m pytest -ra -o cache_dir=/tmp/.pytest_cache
 ============================= test session starts ==============================
 platform linux -- Python 3.12.13, pytest-8.3.3, pluggy-1.6.0
@@ -233,7 +233,7 @@ exit=0
 ```
 $ make lint
 docker run --rm --network none --read-only --tmpfs /tmp --tmpfs /home/appuser/.cache \
-    -v /Users/mkb/projects/pwned-deps:/work:ro -w /work -e RUFF_CACHE_DIR=/tmp/.ruff_cache pwned-deps-dev \
+    -v $(PWD):/work:ro -w /work -e RUFF_CACHE_DIR=/tmp/.ruff_cache pwned-deps-dev \
     ruff check src/ tests/
 All checks passed!
 exit=0
@@ -1638,3 +1638,121 @@ Added a fixture (`mini-shaihulud-followon.lock.json` pinning
 
 Test count: 96 passed, 1 deselected.
 
+
+---
+
+## Post-V1 — v0.1.0 polish (audit-repo + signed feed + research-driven feature gaps)
+
+Driven by reading the SecurityBridge "Mini Shai-Hulud has Appeared"
+post and the Wiz follow-on report end-to-end and asking "what would
+a victim of this campaign actually need from us, in what order?".
+
+### Bug fix: `lightning` (PyPI) silently missed
+
+`EXTRA-2026-0002` was tagged campaign-level `ecosystem: "npm"` so
+the matcher rejected the PyPI `lightning` entries before the version
+check ran. Two follow-ons:
+
+1. Per-package `ecosystem` override in `extras.py`
+   (`entry.get("ecosystem", campaign_eco)`) — single campaign can
+   span multiple ecosystems.
+2. CONTRIBUTING.md previously listed lowercase `pypi` / `crates` /
+   `go` / `maven` / `rubygems` — the matcher compares OSV vocabulary
+   case-sensitively (`PyPI`, `crates.io`, `Go`, `Maven`, `RubyGems`).
+   Documented explicitly to prevent the same bug recurring on PRs.
+
+Regression test: `test_lightning_pypi_is_caught_via_per_package_ecosystem_override`.
+
+### Forensic surfacing: `tarball_sha256` + `iocs[]` rendered inline
+
+The feed already carried `tarball_sha256` per package (Wiz publishes
+these); the renderers just weren't surfacing them. Added two-line
+print in `report/text.py` and a per-finding field in
+`report/json_out.py`:
+
+- `tarball sha256: <hash>` — feeds the SecurityBridge-recommended
+  `find . -name '*.tgz' -exec sha256sum {} +` workflow without
+  cross-blog-reading.
+- `additional indicators to hunt for:` — surfaces non-lockfile
+  IoCs (rogue-repo descriptions, `OhNoWhatsGoingOnWithGitHub:`
+  commit prefix, IDE-persistence file paths, C2 domains).
+
+Both campaigns gained an `iocs[]` array.
+
+### `pwned-deps audit-repo PATH` — forensic file scanner
+
+New `pwned_deps.audit.repo` module + CLI command. Walks a tree,
+hashes every file under 50 MiB, matches against the feed's new
+`file_iocs[]` blocks. Three match levels:
+
+- `sha256+path` — known-bad bytes at known-bad path → exit 1.
+- `sha256` — known-bad bytes anywhere → exit 1.
+- `path` — known-persistence path, content differs → exit 2 (suspect).
+
+Skips `node_modules` / `.git` / `.venv` / build outputs / symlinks.
+Read-only — never writes, deletes, or executes anything.
+
+`EXTRA-2026-0001` shipped 7 `file_iocs` entries (the shared
+`setup.mjs` dropper at `.claude/` and `.vscode/`, three per-package
+`execution.js` SHA-256s, the `.claude/settings.json` Claude Code
+SessionStart hook, the `.vscode/tasks.json` `Environment Setup`
+task). All hashes from Wiz.
+
+JSON output carries `command: "audit-repo"` discriminator alongside
+`schema_version: "1.0"` so downstream consumers can disambiguate
+from `check`'s JSON shape (different fields, same schema_version).
+
+11 new tests using synthetic feeds + benign payloads (no real
+malicious bytes — BUILD_BRIEF §2.8 holds).
+
+Test count: 96 → **109 passed**.
+
+### Sigstore feed signing
+
+`.github/workflows/sign-feed.yml` — keyless OIDC signs `extras.json`
+on every push to `main` that touches it. Bundle attached as a
+90-day workflow artifact; the immutable Rekor log entry is the
+durable trust artifact (no commit-back, no PAT, no force-push
+survivability problem). Verification recipe in
+`SECURITY.md → "Verifying the campaign feed"`:
+`python -m sigstore verify identity` pinned to the workflow's
+OIDC identity, plus `rekor-cli search --sha …` for full feed
+audit history.
+
+### Conflict / future-bite review (done before tagging)
+
+Reviewed for things that could bite later:
+
+1. **`extras.json` schema additions are purely additive.** `iocs`
+   and `file_iocs` are read with `.get(..., [])` everywhere; old
+   campaigns and downstream consumers still work.
+2. **Per-package `ecosystem` override falls back** to campaign-level
+   if not specified. No existing campaign affected.
+3. **`audit-repo` JSON shape ≠ `check` JSON shape**, but both use
+   `schema_version: "1.0"`. Resolved by adding a `command` field;
+   consumers branch on that.
+4. **`audit-repo` exit codes (0/1/2)** overlap numerically with
+   `check` (0/1/2/3) but are scoped to the subcommand. CI scripts
+   pick one or the other; no shared exit-code interpretation.
+5. **`audit-repo` skips `node_modules`** — intentional. Tarball
+   IoCs in `node_modules` are caught by `check` via the lockfile
+   version. `audit-repo` is the IDE-persistence question, which
+   is *outside* the package tree by design.
+6. **Sigstore signing produces a new bundle every time the feed
+   changes** — expected. The Rekor verification recipe doesn't
+   pin to a specific feed hash, so feed updates don't break it.
+7. **Wheel packaging** verified to include `pwned_deps/audit/`
+   and the updated `extras.json` (10006 bytes, 7 file_iocs
+   entries, IoCs on both campaigns).
+
+### Gates re-run
+
+```
+ruff check src tests        → All checks passed!
+make verify-safety          → OK — no forbidden symbols
+make verify-safety-self-test→ OK — caught planted eval()
+host pytest                 → 109 passed, 1 deselected
+make test (locked container)→ 109 passed, 1 deselected
+make release-rehearsal      → wheel built, dogfood exit 0,
+                              "[rehearsal] OK — safe to tag"
+```

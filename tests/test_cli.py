@@ -205,10 +205,9 @@ def test_update_creates_cache(tmp_path: Path) -> None:
 def test_check_multiple_paths_skips_unrecognised(
     tmp_path: Path, httpx_mock: HTTPXMock
 ) -> None:
-    """Mirrors the §13 dogfood pattern: pass an unrecognised manifest
-    (pyproject.toml shape) alongside a real lockfile. The unrecognised
-    file should produce a warning on stderr and the run should report
-    the lockfile findings only."""
+    """Pass an unrecognised manifest (pyproject.toml shape) alongside
+    a real lockfile. The unrecognised file should produce a warning on
+    stderr and the run should report the lockfile findings only."""
 
     manifest = tmp_path / "pyproject.toml"
     manifest.write_text("[project]\nname = 'x'\n", encoding="utf-8")

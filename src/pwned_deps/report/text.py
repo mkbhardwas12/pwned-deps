@@ -40,7 +40,7 @@ def render_text(
     no_color: bool = False,
     verbose: bool = False,
 ) -> int:
-    """Render ``reports`` to stdout. Return the exit code per BUILD_BRIEF §3."""
+    """Render ``reports`` to stdout. Return the exit code (see ``cli`` module)."""
 
     console = Console(
         no_color=no_color or ci,

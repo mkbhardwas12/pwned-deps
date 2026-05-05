@@ -2,7 +2,7 @@
 
 `extras.json` ships inside the package and is updated by maintainers
 when a supply-chain campaign is announced and OSV hasn't yet ingested
-it. The schema is documented in BUILD_BRIEF §6.
+it. The schema is documented in CONTRIBUTING.md.
 
 This module loads the bundled feed and any user-supplied feed paths
 (allow-listed by the CLI). It produces synthetic ``Advisory`` records

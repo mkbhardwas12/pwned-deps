@@ -1,7 +1,6 @@
 """Local SQLite cache for OSV advisory lookups.
 
-Layout (deviates slightly from BUILD_BRIEF §7 Step 4 — see BUILD_LOG.md
-for rationale):
+Layout:
 
 * ``queries`` — one row per ``(ecosystem, package, version)`` we have
   ever asked OSV about. Records the last-fetch wall-clock so we can
@@ -30,7 +29,7 @@ from typing import Any
 
 from pwned_deps.advisory.types import Advisory, Severity
 
-_DEFAULT_TTL_SECONDS = 24 * 60 * 60  # 24h per BUILD_BRIEF §6
+_DEFAULT_TTL_SECONDS = 24 * 60 * 60  # 24h
 
 
 def default_cache_path() -> Path:

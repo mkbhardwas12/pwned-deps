@@ -2,7 +2,7 @@
 #
 # Hard rule: the host runs `make` only — never `pytest` or the scanner
 # directly. All build/test/lint happens inside the locked-down dev
-# container. The brief's safety contract §2 binds this.
+# container. The safety contract in SECURITY.md binds this.
 #
 # Targets:
 #   make build                Build the dev image (tag: pwned-deps-dev)
@@ -34,15 +34,14 @@ IMAGE := pwned-deps-dev
 PWD := $(shell pwd)
 
 # Forbidden-symbol enforcement is delegated to tools/verify_safety.py.
-# Why a Python script instead of plain `grep -E`? The brief's regex
-# uses a negative lookbehind (`(?<!re\.)`) so that bare `compile(` is
-# caught while `re.compile(...)` is allowed. POSIX ERE does not support
-# lookbehinds; on macOS, BSD grep errors out (exit 2) which a Makefile
-# `if` treats as "no matches found" and silently passes. Python's `re`
-# honors the regex literally on every platform.
+# Why a Python script instead of plain `grep -E`? The forbidden-symbol
+# regex uses a negative lookbehind (`(?<!re\.)`) so that bare
+# `compile(` is caught while `re.compile(...)` is allowed. POSIX ERE
+# does not support lookbehinds; on macOS, BSD grep errors out (exit 2)
+# which a Makefile `if` treats as "no matches found" and silently
+# passes. Python's `re` honors the regex literally on every platform.
 #
-# The regex itself lives in tools/verify_safety.py and is verbatim from
-# BUILD_BRIEF §7 Step 1.
+# The regex itself lives in tools/verify_safety.py.
 
 # Container run flags for test/lint (locked down).
 RUN_FLAGS_LOCKED := --rm --network none --read-only \

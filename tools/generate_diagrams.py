@@ -11,8 +11,9 @@ Outputs:
   docs/images/mini-shai-hulud.png    — April 29 incident timeline
   docs/images/detection-flow.png     — what `pwned-deps check` does
 
-Every fact rendered in the timeline is sourced from a named
-research blog and double-checked in BUILD_LOG.md. No fabrication.
+Every fact rendered in the timeline is sourced from a named research
+blog (citations in `src/pwned_deps/extras_data/extras.json`). No
+fabrication.
 """
 
 from __future__ import annotations

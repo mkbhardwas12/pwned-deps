@@ -2,8 +2,7 @@
 
 Public surface re-exports the shared dataclasses + the per-ecosystem
 ``parse`` callables. Lockfile parsing is text/JSON only — we never
-execute, install, or fetch anything from a parsed lockfile (BUILD_BRIEF
-§2 rule 1).
+execute, install, or fetch anything from a parsed lockfile.
 """
 
 from pwned_deps.parsers import cargo, gem, go, maven, npm, pnpm, pypi, yarn

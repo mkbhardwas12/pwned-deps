@@ -1,7 +1,7 @@
 """npm `package-lock.json` and `npm-shrinkwrap.json` parser.
 
 Handles npm lockfile schemas v1, v2, and v3. Pure JSON parsing; never
-executes anything from the file (BUILD_BRIEF §2 rule 1).
+executes anything from the file.
 
 Schema overview:
 
@@ -10,7 +10,7 @@ Schema overview:
 * **v2** (npm 7) — adds a flat ``packages`` map keyed by paths like
   ``"node_modules/<pkg>"`` or ``"node_modules/<scope>/<pkg>"``. The
   legacy ``dependencies`` block is also present for backwards
-  compatibility. We prefer ``packages`` (per BUILD_BRIEF §7 Step 2).
+  compatibility. We prefer ``packages`` because it is fully resolved.
 * **v3** (npm 9+) — ``packages`` only.
 * **npm-shrinkwrap.json** shares the v2/v3 schema.
 

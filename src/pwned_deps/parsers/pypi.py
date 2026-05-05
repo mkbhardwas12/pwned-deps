@@ -12,7 +12,7 @@ Handles four common formats, auto-dispatched by filename:
 * ``uv.lock`` — TOML, ``[[package]]`` array of tables.
 
 Pure parsing; we never run ``pip install`` or any other process on
-contents (BUILD_BRIEF §2 rule 1).
+the contents.
 """
 
 from __future__ import annotations

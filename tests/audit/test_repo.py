@@ -1,8 +1,8 @@
 """Tests for `pwned_deps.audit.repo` and the `audit-repo` CLI command.
 
-We never check real malicious bytes into the repo (BUILD_BRIEF §2.8).
-Instead each test builds a synthetic feed pointing at a benign file
-whose SHA-256 we compute on the fly.
+We never check real malicious bytes into the repo. Instead each test
+builds a synthetic feed pointing at a benign file whose SHA-256 we
+compute on the fly.
 """
 
 from __future__ import annotations

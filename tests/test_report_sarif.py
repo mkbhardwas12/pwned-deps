@@ -3,7 +3,7 @@
 The bundled SARIF schema is at
 ``tests/fixtures/sarif/sarif-2.1.0-schema.json`` (fetched from
 json.schemastore.org). We validate the renderer output with
-``jsonschema.validate``, then assert the brief's required fields.
+``jsonschema.validate``, then assert the required fields are present.
 """
 
 from __future__ import annotations

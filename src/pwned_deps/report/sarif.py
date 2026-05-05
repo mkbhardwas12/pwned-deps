@@ -1,6 +1,6 @@
 """SARIF v2.1.0 output for GitHub Code Scanning ingestion.
 
-Schema mapping (BUILD_BRIEF §7 Step 8):
+Schema mapping:
 
 * ``runs[0].tool.driver.name`` = ``"pwned-deps"``
 * ``runs[0].tool.driver.version`` = ``pwned_deps.__version__``

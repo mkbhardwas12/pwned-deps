@@ -1,8 +1,8 @@
 """Reporters — turn ``Finding`` lists into something humans/machines can consume.
 
 * ``text`` — colourful terminal output via ``rich``.
-* ``json_out`` — minimal JSON dump (full schema lands in Step 8).
-* ``sarif`` — SARIF v2.1.0 (Step 8).
+* ``json_out`` — minimal JSON dump.
+* ``sarif`` — SARIF v2.1.0 for GitHub Code Scanning.
 """
 
 from pwned_deps.report.json_out import render_json

@@ -1,6 +1,6 @@
 # Dev container for pwned-deps.
 #
-# Safety contract (mirrors BUILD_BRIEF.md §2):
+# Safety contract:
 #   - Runs as non-root user `appuser` (UID 1000).
 #   - Installs ONLY tools listed in `requirements.lock` (pinned). Never
 #     installs the packages we are scanning — lockfile parsing is text

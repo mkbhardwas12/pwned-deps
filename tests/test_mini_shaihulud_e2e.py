@@ -1,8 +1,8 @@
 """End-to-end check that the bundled Mini Shai-Hulud campaign is detected.
 
-Per BUILD_BRIEF §7 Step 7 acceptance: running `pwned-deps check` against
-a fixture lockfile that pins a known-bad version returns the campaign as
-a finding with the correct exposure window and remediation steps.
+Acceptance: running `pwned-deps check` against a fixture lockfile that
+pins a known-bad version returns the campaign as a finding with the
+correct exposure window and remediation steps.
 """
 
 from __future__ import annotations

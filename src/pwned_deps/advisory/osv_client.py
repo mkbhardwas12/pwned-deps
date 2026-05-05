@@ -10,10 +10,10 @@ Two endpoints:
   same advisory isn't fetched twice during a single
   ``query_batch`` invocation.
 
-Network-side guarantees (BUILD_BRIEF §2.3):
+Network-side guarantees:
 
 * Only ``api.osv.dev`` is contacted (and an opt-in user-configured
-  feed URL — Step 5 wires that, this client never reaches outside its
+  feed URL handled elsewhere; this client never reaches outside its
   ``base_url``).
 * ``httpx.Client(trust_env=False)`` so host proxy environment vars
   cannot silently redirect traffic.

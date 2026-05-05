@@ -1,4 +1,4 @@
-"""Tests for the Step 9 ecosystem parsers (Cargo, Go, pnpm, yarn, Maven, RubyGems).
+"""Tests for the secondary ecosystem parsers (Cargo, Go, pnpm, yarn, Maven, RubyGems).
 
 Each parser gets at least 3 happy/edge-case tests on hand-crafted INERT
 fixtures committed under ``tests/fixtures/<ecosystem>/``. We never run

@@ -22,8 +22,6 @@ htmlcov/
 # Documentation does not need to be inside the container.
 README.md
 CHANGELOG.md
-BUILD_BRIEF.md
-BUILD_LOG.md
 LICENSE
 
 # Captured digest belongs in the host repo, not the image.

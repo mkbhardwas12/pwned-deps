@@ -1,8 +1,9 @@
 """Machine-readable JSON output.
 
-Step 8 will firm this up with a documented schema; today's shape is the
-minimum needed by the Step 6 CLI gate ("--format json yields valid
-JSON parseable by json.loads with the expected keys").
+Minimal shape: ``--format json`` yields valid JSON parseable by
+``json.loads`` with the keys consumers depend on. SARIF
+(``report/sarif.py``) is the richer machine format for tools that
+speak it.
 """
 
 from __future__ import annotations

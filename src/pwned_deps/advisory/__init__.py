@@ -1,8 +1,8 @@
 """Advisory data + sources.
 
 * `types` — `Advisory`, `Severity` dataclasses.
-* `osv_client` — talks to https://api.osv.dev (allow-listed per
-  BUILD_BRIEF §2.3).
+* `osv_client` — talks to https://api.osv.dev (the only network host
+  this client is allowed to contact).
 * `cache` — local SQLite cache so we work offline and don't hammer OSV.
 """
 

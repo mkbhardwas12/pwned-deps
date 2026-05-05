@@ -1,7 +1,7 @@
-"""Smoke tests for Step 1.
+"""Smoke tests.
 
-These verify the package imports and exposes a version. Real behavioural
-tests land alongside their respective modules in later steps.
+These verify the package imports and exposes a version. Behavioural
+tests live alongside their respective modules.
 """
 
 import re

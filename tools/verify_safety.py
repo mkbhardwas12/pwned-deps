@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Verify that no source file under the given roots contains a forbidden
-symbol from BUILD_BRIEF §2 / §7 Step 1.
+symbol that could turn a parsed lockfile into executed code.
 
-Why a Python script and not plain grep? The brief's regex includes a
-negative lookbehind (`(?<!re\\.)\\bcompile\\(`) so that bare `compile(`
-calls trip the safety net while `re.compile(...)` does not. POSIX BRE/ERE
-does not support lookbehinds, and BSD grep on macOS errors out and
-exits 2 — which a Makefile `if` treats as "no matches found" and
-silently returns success. Python's `re` module honors the brief's
-regex literally on every platform, so we use it.
+Why a Python script and not plain grep? The forbidden-symbol regex
+includes a negative lookbehind (`(?<!re\\.)\\bcompile\\(`) so that
+bare `compile(` calls trip the safety net while `re.compile(...)`
+does not. POSIX BRE/ERE does not support lookbehinds, and BSD grep on
+macOS errors out and exits 2 — which a Makefile `if` treats as
+"no matches found" and silently returns success. Python's `re` module
+honors the regex literally on every platform, so we use it.
 
 This script lives outside src/ and tests/ so it is not itself scanned.
 
@@ -27,7 +27,6 @@ import re
 import sys
 from pathlib import Path
 
-# Verbatim from BUILD_BRIEF §7 Step 1 with the brief-sanctioned
 # (?<!re\.) mitigation so re.compile(...) is allowed without per-line
 # noqa comments.
 FORBIDDEN_PATTERN = (

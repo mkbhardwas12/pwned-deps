@@ -8,7 +8,7 @@ Subcommands:
   cached entry).
 * ``version`` — print ``pwned_deps.__version__``.
 
-Exit codes (BUILD_BRIEF §3):
+Exit codes:
 
 * 0 — clean
 * 1 — at least one MAL-* / EXTRA-* (malicious) hit
@@ -97,7 +97,7 @@ def main() -> None:
     "--ci",
     is_flag=True,
     default=False,
-    help="Suppress color/decorations; deterministic exit codes per BUILD_BRIEF §3.",
+    help="Suppress color/decorations; deterministic exit codes for CI use.",
 )
 @click.option(
     "--no-color",

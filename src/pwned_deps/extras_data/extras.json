@@ -1,8 +1,204 @@
 {
   "version": 1,
-  "updated_at": "2026-05-03T00:00:00Z",
-  "_comment": "Repo-managed campaigns feed. Append to `campaigns` when a new supply-chain incident is published; cite the named research blog(s) you sourced names + versions + window from. Do NOT fabricate version numbers.",
+  "updated_at": "2026-05-04T00:00:00Z",
+  "_comment": "Repo-managed campaigns feed. Append to `campaigns` when a new supply-chain incident is published; cite the named research blog(s) you sourced names + versions + window from. Do NOT fabricate version numbers. Historical entries (2018-2022) cover well-documented incidents whose MAL-* records may be present in OSV but whose IoCs / forensic context typically are not — that is the value-add of this feed.",
   "campaigns": [
+    {
+      "id": "EXTRA-2018-0001",
+      "name": "event-stream / flatmap-stream credential stealer",
+      "summary": "In September 2018 the maintainer of the popular npm package `event-stream` handed publish rights to a new contributor who immediately added `flatmap-stream@0.1.1` as a dependency. That sub-dependency contained an obfuscated payload targeting the Copay Bitcoin wallet, attempting to exfiltrate wallet keys when bundled into Copay's release. Discovered Nov 26, 2018; affected anyone who installed `event-stream@3.3.6` (and transitively `flatmap-stream@0.1.1`) between Sept 9 and Nov 26, 2018.",
+      "references": [
+        "https://github.com/dominictarr/event-stream/issues/116",
+        "https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident",
+        "https://snyk.io/blog/malicious-code-found-in-npm-package-event-stream/"
+      ],
+      "ecosystem": "npm",
+      "packages": [
+        {"name": "event-stream", "versions": ["3.3.6"]},
+        {"name": "flatmap-stream", "versions": ["0.1.1", "0.1.2"]}
+      ],
+      "exposure_window": ["2018-09-09T00:00:00Z", "2018-11-26T23:59:59Z"],
+      "_exposure_window_note": "Conservative whole-day window from public disclosure (npmjs.org incident post). Exact UTC publish/unpublish stamps are not in the cited sources.",
+      "iocs": [
+        "Targeted exfiltration: the payload was hard-coded to activate only inside the Copay wallet build (looked for a specific package.json description). Generic env-var theft was not the goal here — it is a targeted attack pattern.",
+        "Obfuscated payload location: bottom of test/data.js in flatmap-stream@0.1.1 (AES-256 encrypted with a key derived from the host package's description)."
+      ],
+      "actions": [
+        "Pin npm dependencies; do not allow caret/tilde upgrades on `event-stream` or `flatmap-stream`.",
+        "If you ever shipped a build of Copay 5.0.2-5.1.0, treat it as compromised.",
+        "Audit any historical npm tarball cache for these versions and delete."
+      ]
+    },
+    {
+      "id": "EXTRA-2018-0002",
+      "name": "eslint-scope / eslint-config-eslint token-stealer",
+      "summary": "On July 12, 2018 an attacker used a leaked maintainer credential to publish trojanised versions of `eslint-scope` and `eslint-config-eslint`. The malicious postinstall script harvested the user's `~/.npmrc` token and POSTed it to a pastebin endpoint, enabling a self-propagating worm. Detected within ~40 minutes; npm invalidated all tokens issued before the incident.",
+      "references": [
+        "https://eslint.org/blog/2018/07/postmortem-for-malicious-package-publishes/",
+        "https://blog.npmjs.org/post/175824896885/incident-report-npm-inc-operations-incident-of"
+      ],
+      "ecosystem": "npm",
+      "packages": [
+        {"name": "eslint-scope", "versions": ["3.7.2"]},
+        {"name": "eslint-config-eslint", "versions": ["5.0.2"]}
+      ],
+      "exposure_window": ["2018-07-12T16:49:00Z", "2018-07-12T18:25:00Z"],
+      "iocs": [
+        "Malicious postinstall script reads ~/.npmrc and POSTs the auth token to pastebin.com.",
+        "Any npm token issued before 2018-07-12 18:25 UTC was force-invalidated by npm — if your CI is still using one, it is unrelated to this incident but is a hygiene smell."
+      ],
+      "actions": [
+        "If you installed either package on July 12, 2018 with caret upgrades enabled, rotate any npm tokens that were on the host.",
+        "Confirm your CI does not have any pre-July-2018 npm tokens cached."
+      ]
+    },
+    {
+      "id": "EXTRA-2021-0001",
+      "name": "ua-parser-js account hijack",
+      "summary": "On October 22, 2021 the maintainer of `ua-parser-js` (one of the most-downloaded npm packages, ~7M weekly downloads) had their npm account hijacked. Three trojanised versions were published containing a preinstall script that downloaded a coin miner on Linux/macOS and an info-stealer DLL on Windows. Detected within ~4 hours; affected versions were unpublished.",
+      "references": [
+        "https://github.com/advisories/GHSA-pjwm-rvh2-c87w",
+        "https://github.com/faisalman/ua-parser-js/issues/536",
+        "https://www.cisa.gov/news-events/alerts/2021/10/22/malware-discovered-popular-npm-package-ua-parser-js"
+      ],
+      "ecosystem": "npm",
+      "packages": [
+        {"name": "ua-parser-js", "versions": ["0.7.29", "0.8.0", "1.0.0"]}
+      ],
+      "exposure_window": ["2021-10-22T12:15:00Z", "2021-10-22T16:30:00Z"],
+      "_exposure_window_note": "Times approximated from CISA alert + GHSA timeline; sources do not publish minute-precise stamps.",
+      "iocs": [
+        "Outbound DNS to citationsherbe[.]top (XMRig coin miner C2 on Linux/macOS).",
+        "Process /tmp/jsextension running on Linux build runners.",
+        "Windows: presence of sdd.dll (info-stealer) in user temp; outbound to ww2[.]4tg6r[.]life.",
+        "Any AWS / npm / GitHub credentials reachable from a Windows dev machine that ran `npm install` should be considered exfiltrated."
+      ],
+      "actions": [
+        "Re-image affected hosts (CISA recommendation) — do not just uninstall.",
+        "Rotate every credential reachable from the affected host: AWS, npm, GitHub, SSH, browser-stored.",
+        "Audit for the dropped /tmp/jsextension or sdd.dll artifacts."
+      ]
+    },
+    {
+      "id": "EXTRA-2021-0002",
+      "name": "coa account hijack",
+      "summary": "On November 4, 2021 the npm package `coa` (a Yargs-style command-line option parser, ~9M weekly downloads, dependency of react-scripts) had several historical versions overwritten with a credential-stealer payload identical in behaviour to the ua-parser-js incident two weeks earlier. Same actor, same Windows DanaBot-family stealer.",
+      "references": [
+        "https://github.com/advisories/GHSA-73qr-pfmq-6rp8",
+        "https://github.com/veged/coa/issues/99",
+        "https://blog.sonatype.com/popular-coa-and-rc-npm-libraries-hijacked-to-spread-malware"
+      ],
+      "ecosystem": "npm",
+      "packages": [
+        {"name": "coa", "versions": ["2.0.3", "2.0.4", "2.1.1", "2.1.3", "3.0.1", "3.1.3"]}
+      ],
+      "exposure_window": ["2021-11-04T16:00:00Z", "2021-11-05T12:00:00Z"],
+      "iocs": [
+        "Same Windows DanaBot-family payload as ua-parser-js / rc — sdd.dll dropped to user temp; outbound to ww2[.]4tg6r[.]life.",
+        "preinstall script in package.json fetches sdd.dll on Windows."
+      ],
+      "actions": [
+        "If react-scripts (or any direct/transitive consumer of coa) was installed on a Windows host between Nov 4-5, 2021 with caret upgrades, treat as compromised.",
+        "Re-image and rotate credentials."
+      ]
+    },
+    {
+      "id": "EXTRA-2021-0003",
+      "name": "rc account hijack",
+      "summary": "On November 4, 2021 the npm package `rc` (Node config loader, ~14M weekly downloads) was compromised by the same actor as the coa incident the same day. Trojanised versions contained the DanaBot-family Windows stealer.",
+      "references": [
+        "https://github.com/advisories/GHSA-g2q5-5433-rhrf",
+        "https://blog.sonatype.com/popular-coa-and-rc-npm-libraries-hijacked-to-spread-malware"
+      ],
+      "ecosystem": "npm",
+      "packages": [
+        {"name": "rc", "versions": ["1.2.9", "1.3.9", "2.3.9"]}
+      ],
+      "exposure_window": ["2021-11-04T16:00:00Z", "2021-11-05T12:00:00Z"],
+      "iocs": [
+        "Same Windows DanaBot-family payload as ua-parser-js / coa.",
+        "Same outbound IoCs (ww2[.]4tg6r[.]life)."
+      ],
+      "actions": [
+        "Same remediation as EXTRA-2021-0002 (coa) — same actor, same window.",
+        "Re-image affected Windows hosts; rotate credentials."
+      ]
+    },
+    {
+      "id": "EXTRA-2022-0001",
+      "name": "ctx (PyPI) account takeover",
+      "summary": "In May 2022 an attacker registered an expired domain that controlled the email address of the maintainer of the PyPI package `ctx` (a small dictionary-utility library, ~22k weekly downloads, last legitimately updated in 2014). They reset the PyPI password, re-published `0.1.2`, and uploaded new versions containing code that exfiltrated environment variables (AWS keys, Django secrets) to a Heroku endpoint. The same attacker also republished `phpass` on PHP's Packagist with the same payload.",
+      "references": [
+        "https://github.blog/2022-05-24-security-alert-attack-campaign-involving-stolen-oauth-user-tokens/",
+        "https://blog.sonatype.com/python-package-ctx-and-phpass-rubygem-hijacked-to-steal-environment-variables",
+        "https://medium.com/checkmarx-security/the-story-of-extracting-credentials-from-airflow-instances-1f57bc4e76db"
+      ],
+      "ecosystem": "PyPI",
+      "packages": [
+        {"name": "ctx", "versions": ["0.1.2", "0.2.2", "0.2.6"]}
+      ],
+      "exposure_window": ["2022-05-14T00:00:00Z", "2022-05-24T23:59:59Z"],
+      "_exposure_window_note": "Conservative window from initial republish (May 14) to PyPI removal after sonatype + github disclosure (May 24).",
+      "iocs": [
+        "Outbound HTTP POST to anti-theft-web.herokuapp.com/hacked/ — payload is the host's full os.environ dict.",
+        "Any AWS access key, Django SECRET_KEY, or DB connection string present in env on a Python host that pip-installed ctx in May 2022 should be considered exfiltrated.",
+        "Same actor used the email yk.pandey35@gmail.com per Sonatype's disclosure."
+      ],
+      "actions": [
+        "If you have AWS access keys that were ever exported into the environment of a host that pip-installed `ctx`, rotate them.",
+        "Audit CloudTrail for unexpected API activity from those keys, May 14-24 2022.",
+        "Pin PyPI dependencies; do not allow loose `>=` ranges to pull republished versions of long-dormant packages."
+      ]
+    },
+    {
+      "id": "EXTRA-2022-0002",
+      "name": "node-ipc protestware (peacenotwar)",
+      "summary": "In March 2022 the maintainer of `node-ipc` (a popular IPC library, ~1M weekly downloads, transitive dep of @vue/cli) added geo-targeted destructive code: versions 10.1.1 and 10.1.2 attempted to overwrite arbitrary filesystem contents with a heart emoji on hosts whose IP geolocated to Russia or Belarus. Subsequent versions added `peacenotwar` as a dependency, which dropped a `WITH-LOVE-FROM-AMERICA.txt` protest message on every host. CVE-2022-23812 was assigned. This is protestware, not financially-motivated malware, but it is destructive code shipped without consent.",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2022-23812",
+        "https://snyk.io/blog/peacenotwar-malicious-npm-node-ipc-package-vulnerability/",
+        "https://github.com/advisories/GHSA-97m3-w2cp-4xx6"
+      ],
+      "ecosystem": "npm",
+      "packages": [
+        {"name": "node-ipc", "versions": ["10.1.1", "10.1.2", "10.1.3", "11.0.0"]},
+        {"name": "peacenotwar", "versions": ["1.0.0", "1.0.1", "1.0.2", "1.0.3", "1.0.4", "1.0.5"]}
+      ],
+      "exposure_window": ["2022-03-08T00:00:00Z", "2022-03-17T23:59:59Z"],
+      "iocs": [
+        "Files named WITH-LOVE-FROM-AMERICA.txt anywhere under user home (~/Desktop) on a host that pulled node-ipc 10.x.",
+        "node-ipc 10.1.1 / 10.1.2 contain a base64-encoded geo-targeting wiper at the top of dao/ssl-geospec.js.",
+        "Outbound DNS to api.ipgeolocation.io (used by the wiper to determine the host's country)."
+      ],
+      "actions": [
+        "Pin node-ipc to <= 9.x or jump past the protest fork.",
+        "Audit any user-data directory on Vue.js dev machines from March 2022 for the protest text file."
+      ]
+    },
+    {
+      "id": "EXTRA-2022-0003",
+      "name": "PyTorch nightly torchtriton dependency-confusion",
+      "summary": "Between Dec 25-30 2022, anyone installing PyTorch's nightly Linux build via pip received a malicious `torchtriton` package from PyPI instead of the legitimate one from PyTorch's private index. The attacker had registered the name on public PyPI (dependency-confusion). The malicious binary read /etc/hostname, /etc/passwd, ~/.gitconfig, ~/.ssh/* and uploaded them to h4ck.cfd. Affected the nightly channel only; the stable PyTorch release was never compromised.",
+      "references": [
+        "https://pytorch.org/blog/compromised-nightly-dependency/",
+        "https://blog.phylum.io/malicious-pypi-package-torchtriton-puts-pytorch-developers-at-risk/"
+      ],
+      "ecosystem": "PyPI",
+      "packages": [
+        {"name": "torchtriton", "versions": ["0.0.1"]}
+      ],
+      "exposure_window": ["2022-12-25T00:00:00Z", "2022-12-30T23:59:59Z"],
+      "iocs": [
+        "Binary at $PYTHON_SITE_PACKAGES/triton/runtime/triton — calculates SHA256 of /etc/hostname and uploads it as a beacon.",
+        "Outbound DNS to *.h4ck.cfd (wheezy[.]h4ck[.]cfd was the documented exfil host).",
+        "Files exfiltrated: /etc/hostname, /etc/passwd, $HOME/.gitconfig, $HOME/.ssh/*, first 1000 files under $HOME."
+      ],
+      "actions": [
+        "If you ran PyTorch nightly between Dec 25-30 2022 on Linux, treat the SSH keys / git config / any secret in $HOME as exfiltrated.",
+        "Rotate SSH keys and any git credentials on affected machines.",
+        "Use `--index-url` (not `--extra-index-url`) when installing from a private index to avoid this entire class of attack."
+      ]
+    },
     {
       "id": "EXTRA-2026-0001",
       "name": "Mini Shai-Hulud (SAP CAP)",

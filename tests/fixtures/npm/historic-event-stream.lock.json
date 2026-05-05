@@ -1,0 +1,27 @@
+{
+  "name": "historic-event-stream-demo",
+  "version": "1.0.0",
+  "lockfileVersion": 3,
+  "requires": true,
+  "_comment": "Pins the compromised event-stream@3.3.6 (EXTRA-2018-0001). Used to prove the historical-campaigns feed flags lockfiles produced before the incident was disclosed in November 2018. Contains no executable code.",
+  "packages": {
+    "": {
+      "name": "historic-event-stream-demo",
+      "version": "1.0.0",
+      "license": "MIT",
+      "dependencies": {
+        "event-stream": "3.3.6"
+      }
+    },
+    "node_modules/event-stream": {
+      "version": "3.3.6",
+      "resolved": "https://registry.npmjs.org/event-stream/-/event-stream-3.3.6.tgz",
+      "integrity": "sha512-fakeFakeFakeForFixtureOnly=="
+    },
+    "node_modules/flatmap-stream": {
+      "version": "0.1.1",
+      "resolved": "https://registry.npmjs.org/flatmap-stream/-/flatmap-stream-0.1.1.tgz",
+      "integrity": "sha512-fakeFakeFakeForFixtureOnly=="
+    }
+  }
+}

@@ -5,6 +5,10 @@ All notable changes to this project are documented here. Format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each commit
 uses [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.1.0] - 2026-05-05
+
+First public release on PyPI.
+
 ## [Unreleased]
 
 ### Added

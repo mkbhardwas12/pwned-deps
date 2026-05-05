@@ -110,7 +110,7 @@ def capture_pr_comment_preview(scan_json: Path, out: Path) -> None:
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("pr_comment_demo", REPO / "tools" / "pr_comment.py")
-    assert spec and spec.loader
+    assert spec and spec.loader  # noqa: S101 - dev script
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     body, _ = mod.render(json.loads(scan_json.read_text()))
@@ -128,7 +128,7 @@ def capture_pr_comment_html(scan_json: Path, out: Path) -> None:
     import re
 
     spec = importlib.util.spec_from_file_location("pr_comment_demo2", REPO / "tools" / "pr_comment.py")
-    assert spec and spec.loader
+    assert spec and spec.loader  # noqa: S101 - dev script
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     body, _ = mod.render(json.loads(scan_json.read_text()))

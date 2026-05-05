@@ -386,7 +386,7 @@ def timeline_diagram(out_path: Path) -> None:
 
     d.text(
         (40, 30),
-        "Mini Shai-Hulud — April 29–30, 2026",
+        "Mini Shai-Hulud \u2014 April 29\u201330, 2026",
         fill=TEXT,
         font=font(28, bold=True),
     )

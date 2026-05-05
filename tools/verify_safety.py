@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 
 # (?<!re\.) mitigation so re.compile(...) is allowed without per-line
-# noqa comments.
+# skip-comments.
 FORBIDDEN_PATTERN = (
     r"\.render\(|"
     r"\beval\(|"

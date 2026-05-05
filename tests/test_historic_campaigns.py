@@ -25,7 +25,7 @@ def _campaigns() -> dict[str, dict]:
 
 
 def test_extras_carries_eight_historical_campaigns() -> None:
-    """The bundled feed must include the 2018-2022 backfill so a fresh
+    """The bundled feed must include the 2018-2025 backfill so a fresh
     install knows about classic incidents, not just the launch peg."""
     campaigns = _campaigns()
     expected_historical = {
@@ -37,6 +37,11 @@ def test_extras_carries_eight_historical_campaigns() -> None:
         "EXTRA-2022-0001",  # ctx (PyPI)
         "EXTRA-2022-0002",  # node-ipc
         "EXTRA-2022-0003",  # torchtriton (PyPI)
+        "EXTRA-2023-0001",  # @ledgerhq/connect-kit
+        "EXTRA-2024-0001",  # xz-utils
+        "EXTRA-2024-0002",  # @lottiefiles/lottie-player
+        "EXTRA-2025-0001",  # tj-actions/changed-files
+        "EXTRA-2025-0002",  # Shai-Hulud original
     }
     missing = expected_historical - set(campaigns.keys())
     assert not missing, f"historical campaigns missing from feed: {missing}"
@@ -91,4 +96,4 @@ def test_feed_spans_multiple_ecosystems() -> None:
                 ecosystems.add(pkg["ecosystem"])
     assert "npm" in ecosystems
     assert "PyPI" in ecosystems
-    assert len(ecosystems) >= 2, f"feed is single-ecosystem: {ecosystems}"
+    assert len(ecosystems) >= 3, f"feed lacks ecosystem breadth: {ecosystems}"

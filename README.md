@@ -83,7 +83,7 @@ published malicious versions.
 |-----------------------|-----------------------------------------------------------------|
 | **What**              | A 5-second red/green answer to "is anything in my lockfile pwned?" |
 | **Who it's for**      | Application devs, SREs, AppSec / DFIR responders during an active incident |
-| **Inputs**            | Lockfiles (npm, PyPI, Maven, Cargo, Go, RubyGems, Packagist) — never source, never tarballs |
+| **Inputs**            | Lockfiles (npm, PyPI, Maven, Cargo, Go, RubyGems, Packagist) and CycloneDX / SPDX SBOMs — never source, never tarballs |
 | **Data sources**      | [OSV.dev](https://osv.dev) public API + curated `extras.json` campaign feed (signed, sigstore + Rekor) + registry publish timestamps (npm, PyPI) to resolve maintainer-compromise windows and enforce `--min-age` |
 | **Outputs**           | Coloured terminal report, JSON, SARIF (GitHub Code Scanning) |
 | **Four commands**     | `pwned-deps check <lockfile>` (one-shot scan) · `pwned-deps audit-repo <dir>` (forensic file-IoC scan) · `pwned-deps watch <lockfile> --baseline <file>` (daily baseline + delta alert) · `pwned-deps report <scans> -o <html>` (org-wide HTML dashboard) |
@@ -371,6 +371,7 @@ and you have a same-day signal for every campaign that lands.
 | Maven     | `pom.xml` (`<dependencies>` + `<dependencyManagement>`)   |
 | RubyGems  | `Gemfile.lock`                                            |
 | Packagist | `composer.lock`                                           |
+| SBOM      | CycloneDX / SPDX JSON — `bom.json`, `*.cdx.json`, `*.spdx.json` (any ecosystem above, read from the `purl`) |
 
 Loose pins in `requirements.txt` (`>=`, `~=`, `<`, `==1.2.*`) and Maven
 property-variable versions (`${spring.version}`) are parsed but marked

@@ -14,6 +14,7 @@ from pwned_deps.parsers import (
     npm,
     pnpm,
     pypi,
+    sbom,
     yarn,
 )
 from pwned_deps.parsers.base import (
@@ -36,5 +37,6 @@ __all__ = [
     "npm",
     "pnpm",
     "pypi",
+    "sbom",
     "yarn",
 ]

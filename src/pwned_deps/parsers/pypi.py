@@ -102,7 +102,7 @@ def _parse_requirements_txt(path: Path) -> Lockfile:
             name, version = pinned
             out.append(
                 Package(
-                    name=_canonicalise(name),
+                    name=canonicalise(name),
                     version=version,
                     ecosystem=Ecosystem.PYPI,
                     lockfile_path=str(path),
@@ -114,7 +114,7 @@ def _parse_requirements_txt(path: Path) -> Lockfile:
         if loose:
             out.append(
                 Package(
-                    name=_canonicalise(loose),
+                    name=canonicalise(loose),
                     version="",
                     ecosystem=Ecosystem.PYPI,
                     lockfile_path=str(path),
@@ -183,7 +183,7 @@ def _extract_name_loose(line: str) -> str | None:
     return name or None
 
 
-def _canonicalise(name: str) -> str:
+def canonicalise(name: str) -> str:
     """Return PEP 503-canonical name (lowercase, runs of [-_.] → '-').
 
     OSV requires this normalisation for PyPI lookups.
@@ -233,7 +233,7 @@ def _parse_pipfile_lock(path: Path) -> Lockfile:
             version = version_raw[2:] if version_raw.startswith("==") else version_raw
             out.append(
                 Package(
-                    name=_canonicalise(name),
+                    name=canonicalise(name),
                     version=version,
                     ecosystem=Ecosystem.PYPI,
                     lockfile_path=str(path),
@@ -265,7 +265,7 @@ def _parse_poetry_lock(path: Path) -> Lockfile:
             continue
         out.append(
             Package(
-                name=_canonicalise(name),
+                name=canonicalise(name),
                 version=version,
                 ecosystem=Ecosystem.PYPI,
                 lockfile_path=str(path),
@@ -304,7 +304,7 @@ def _parse_uv_lock(path: Path) -> Lockfile:
             continue
         out.append(
             Package(
-                name=_canonicalise(name),
+                name=canonicalise(name),
                 version=version,
                 ecosystem=Ecosystem.PYPI,
                 lockfile_path=str(path),

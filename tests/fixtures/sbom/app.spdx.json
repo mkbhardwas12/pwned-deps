@@ -1,0 +1,15 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "demo-app",
+  "packages": [
+    {"SPDXID": "SPDXRef-chalk", "name": "chalk", "versionInfo": "5.6.1",
+     "externalRefs": [{"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:npm/chalk@5.6.1"}]},
+    {"SPDXID": "SPDXRef-jinja2", "name": "Jinja2", "versionInfo": "3.1.2",
+     "externalRefs": [
+       {"referenceCategory": "SECURITY", "referenceType": "cpe23Type", "referenceLocator": "cpe:2.3:a:palletsprojects:jinja:3.1.2:*:*:*:*:*:*:*"},
+       {"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/jinja2@3.1.2"}]},
+    {"SPDXID": "SPDXRef-vendored", "name": "vendored-blob", "versionInfo": "1.0.0"}
+  ]
+}

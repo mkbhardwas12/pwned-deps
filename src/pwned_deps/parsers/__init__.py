@@ -5,7 +5,7 @@ Public surface re-exports the shared dataclasses + the per-ecosystem
 execute, install, or fetch anything from a parsed lockfile.
 """
 
-from pwned_deps.parsers import cargo, gem, go, maven, npm, pnpm, pypi, yarn
+from pwned_deps.parsers import cargo, gem, go, maven, npm, pnpm, pypi, sbom, yarn
 from pwned_deps.parsers.base import (
     Ecosystem,
     Lockfile,
@@ -25,5 +25,6 @@ __all__ = [
     "npm",
     "pnpm",
     "pypi",
+    "sbom",
     "yarn",
 ]

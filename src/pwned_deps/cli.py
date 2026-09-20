@@ -44,6 +44,7 @@ from pwned_deps.parsers import maven as maven_parser
 from pwned_deps.parsers import npm as npm_parser
 from pwned_deps.parsers import pnpm as pnpm_parser
 from pwned_deps.parsers import pypi as pypi_parser
+from pwned_deps.parsers import sbom as sbom_parser
 from pwned_deps.parsers import yarn as yarn_parser
 from pwned_deps.parsers.base import Lockfile, ParseError
 from pwned_deps.report.json_out import render_json
@@ -67,6 +68,7 @@ _DETECTORS: list[tuple[str, object]] = [
     ("go.sum", go_parser.parse),
     ("pom.xml", maven_parser.parse),
     ("Gemfile.lock", gem_parser.parse),
+    ("bom.json", sbom_parser.parse),
 ]
 
 
@@ -709,8 +711,15 @@ def _discover_targets(path: Path) -> list[tuple[Path, object]]:
         lower = path.name.lower()
         if path.suffix == ".txt":
             return [(path, pypi_parser.parse)]
-        if path.suffix == ".json" and "lock" in lower:
-            return [(path, npm_parser.parse)]
+        if path.suffix == ".json":
+            if lower.endswith((".cdx.json", ".spdx.json")):
+                return [(path, sbom_parser.parse)]
+            if "lock" in lower:
+                return [(path, npm_parser.parse)]
+            # SBOMs are also named freely (`sbom.json`, `syft-out.json`), so
+            # sniff the document's own format keys before giving up.
+            if sbom_parser.looks_like_sbom(path):
+                return [(path, sbom_parser.parse)]
         return []
 
     if not path.is_dir():

@@ -10,10 +10,12 @@ Subcommands:
 
 Exit codes:
 
-* 0 — clean
+* 0 — clean: every pinned package was checked, nothing found
 * 1 — at least one MAL-* / EXTRA-* (malicious) hit
-* 2 — at least one HIGH/CRITICAL CVE hit (no malicious hits)
+* 2 — needs attention: HIGH/CRITICAL CVE or SUSPECT hit (no malicious hits)
 * 3 — parse error in any scanned lockfile
+* 4 — incomplete: some pinned packages could not be looked up
+  (offline cache miss, OSV unreachable). Never reported as clean.
 """
 
 from __future__ import annotations
@@ -187,7 +189,9 @@ def check(
             for report in reports:
                 if report.parse_error:
                     continue
-                report.findings = matcher.match(report.lockfile)
+                result = matcher.match_detailed(report.lockfile)
+                report.findings = result.findings
+                report.unchecked = result.unchecked
     finally:
         if cache is not None:
             cache.close()
@@ -493,12 +497,15 @@ def watch(
         with OsvClient(cache=cache, offline=offline) as osv:
             matcher = Matcher(osv_client=osv, extras=extras)
             for report in reports:
-                report.findings = matcher.match(report.lockfile)
+                result = matcher.match_detailed(report.lockfile)
+                report.findings = result.findings
+                report.unchecked = result.unchecked
     finally:
         if cache is not None:
             cache.close()
 
     hits = watch_diff(reports, baseline)
+    unchecked_total = sum(len(r.unchecked) for r in reports)
 
     # 5. Render
     if fmt == "json":
@@ -524,15 +531,23 @@ def watch(
             ],
             "summary": {
                 "alert_count": len(hits),
+                "unchecked_count": unchecked_total,
             },
         }
         click.echo(_json.dumps(payload, indent=2, sort_keys=True))
     else:
         if not hits:
-            click.echo(
-                f"watch: OK — {len(baseline.packages)} baseline packages, "
-                f"no new findings since {baseline.generated_at}"
-            )
+            if unchecked_total:
+                click.echo(
+                    f"watch: INCOMPLETE — {len(baseline.packages)} baseline packages, "
+                    f"no new findings, but {unchecked_total} package(s) could not be "
+                    f"looked up (offline cache miss or network error)"
+                )
+            else:
+                click.echo(
+                    f"watch: OK — {len(baseline.packages)} baseline packages, "
+                    f"no new findings since {baseline.generated_at}"
+                )
         else:
             click.echo(
                 f"watch: ALERT — {len(hits)} package(s) in your baseline "
@@ -551,7 +566,9 @@ def watch(
                     f"({h.finding.advisory.id}){campaign}"
                 )
 
-    ctx.exit(1 if hits else 0)
+    if hits:
+        ctx.exit(1)
+    ctx.exit(4 if unchecked_total else 0)
 
 
 def _hit_to_json(hit: FileHit, *, root: Path) -> dict[str, object]:

@@ -44,6 +44,8 @@ def parse(path: str | Path) -> Lockfile:
         # Strip "/go.mod" suffix that doubles every entry.
         if version.endswith("/go.mod"):
             version = version[: -len("/go.mod")]
+        if not version:
+            continue
         if (module, version) in seen:
             continue
         seen.add((module, version))

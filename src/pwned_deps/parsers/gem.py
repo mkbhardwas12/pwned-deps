@@ -66,6 +66,7 @@ def parse(path: str | Path) -> Lockfile:
         # pre-release operator just in case.
         if any(ch in version for ch in "<>~="):
             continue
+        version = _strip_platform_suffix(version)
         if (name, version) in seen:
             continue
         seen.add((name, version))
@@ -78,3 +79,15 @@ def parse(path: str | Path) -> Lockfile:
             )
         )
     return Lockfile(path=path, ecosystem=Ecosystem.RUBYGEMS, packages=tuple(out))
+
+
+# Platform-specific builds: `nokogiri (1.15.0-x86_64-linux)`, `-arm64-darwin`,
+# `-java`, `-x64-mingw-ucrt`. Advisories are keyed on the bare version.
+_PLATFORM_SUFFIX_RE = re.compile(
+    r"-(?:x86_64|x86|x64|arm64|aarch64|arm|universal|java|jruby|mswin32|mswin64|mingw32)"
+    r"(?:-[A-Za-z0-9_]+)*$"
+)
+
+
+def _strip_platform_suffix(version: str) -> str:
+    return _PLATFORM_SUFFIX_RE.sub("", version)

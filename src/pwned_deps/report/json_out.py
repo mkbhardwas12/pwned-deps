@@ -12,9 +12,9 @@ import json
 from collections.abc import Sequence
 
 from pwned_deps.advisory.types import Severity
-from pwned_deps.report.text import ScanReport
+from pwned_deps.report.text import ScanReport, exit_code_for
 
-_SCHEMA_VERSION = "1.0"
+_SCHEMA_VERSION = "1.1"
 
 
 def render_json(reports: Sequence[ScanReport], *, version: str) -> tuple[str, int]:
@@ -26,15 +26,14 @@ def render_json(reports: Sequence[ScanReport], *, version: str) -> tuple[str, in
         "lockfiles": [],
         "summary": {
             "total_packages": 0,
+            "checked": 0,
+            "unchecked": 0,
+            "unpinned": 0,
             "compromised": 0,
             "high_critical": 0,
             "other": 0,
         },
     }
-    exit_code = 0
-    parse_failed = False
-    high_or_critical_seen = False
-    malicious_seen = False
 
     for report in reports:
         lockfile_block = {
@@ -43,6 +42,15 @@ def render_json(reports: Sequence[ScanReport], *, version: str) -> tuple[str, in
             "package_count": len(report.lockfile.packages),
             "parse_error": report.parse_error,
             "findings": [],
+            "unchecked": [
+                {
+                    "package": u.package.name,
+                    "version": u.package.version,
+                    "ecosystem": u.package.ecosystem.value,
+                    "reason": u.reason,
+                }
+                for u in report.unchecked
+            ],
         }
         for finding in report.findings:
             adv_raw = finding.advisory.raw if isinstance(finding.advisory.raw, dict) else {}
@@ -77,23 +85,16 @@ def render_json(reports: Sequence[ScanReport], *, version: str) -> tuple[str, in
                 }
             )
             if finding.is_malicious:
-                malicious_seen = True
                 payload["summary"]["compromised"] += 1
             elif finding.advisory.severity in (Severity.HIGH, Severity.CRITICAL):
-                high_or_critical_seen = True
                 payload["summary"]["high_critical"] += 1
             else:
                 payload["summary"]["other"] += 1
         payload["lockfiles"].append(lockfile_block)
         payload["summary"]["total_packages"] += len(report.lockfile.packages)
-        if report.parse_error:
-            parse_failed = True
+        if not report.parse_error:
+            payload["summary"]["checked"] += report.checked_count
+            payload["summary"]["unchecked"] += len(report.unchecked)
+            payload["summary"]["unpinned"] += report.unpinned_count
 
-    if parse_failed:
-        exit_code = 3
-    elif malicious_seen:
-        exit_code = 1
-    elif high_or_critical_seen:
-        exit_code = 2
-
-    return json.dumps(payload, indent=2, sort_keys=True), exit_code
+    return json.dumps(payload, indent=2, sort_keys=True), exit_code_for(reports)

@@ -13,14 +13,21 @@ Output is deterministic when ``ci=True`` so CI logs diff cleanly.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from rich.console import Console
 from rich.text import Text
 
 from pwned_deps.advisory.matcher import Finding
+from pwned_deps.advisory.osv_client import Unchecked
 from pwned_deps.advisory.types import Severity
 from pwned_deps.parsers.base import Lockfile
+
+EXIT_CLEAN = 0
+EXIT_MALICIOUS = 1
+EXIT_ATTENTION = 2
+EXIT_PARSE_ERROR = 3
+EXIT_INCOMPLETE = 4
 
 
 @dataclass
@@ -30,6 +37,41 @@ class ScanReport:
     lockfile: Lockfile
     findings: list[Finding]
     parse_error: str | None = None
+    # Pinned packages whose advisory lookup did not complete. These
+    # are never "clean" — see ``exit_code_for``.
+    unchecked: list[Unchecked] = field(default_factory=list)
+
+    @property
+    def unpinned_count(self) -> int:
+        return sum(1 for p in self.lockfile.packages if p.version_unspecified)
+
+    @property
+    def checked_count(self) -> int:
+        return len(self.lockfile.packages) - self.unpinned_count - len(self.unchecked)
+
+
+def exit_code_for(reports: Sequence[ScanReport]) -> int:
+    """Single source of truth for the CLI exit code.
+
+    Findings win over incompleteness: a confirmed compromise is exit 1
+    even if other packages went unchecked. Only when nothing at all was
+    found do we distinguish "all checked, clean" (0) from "some pinned
+    packages were never looked up" (4).
+    """
+
+    if any(r.parse_error for r in reports):
+        return EXIT_PARSE_ERROR
+    findings = [f for r in reports for f in r.findings]
+    if any(f.is_malicious for f in findings):
+        return EXIT_MALICIOUS
+    if any(
+        not f.is_malicious and f.severity in (Severity.HIGH, Severity.CRITICAL)
+        for f in findings
+    ):
+        return EXIT_ATTENTION
+    if any(r.unchecked for r in reports):
+        return EXIT_INCOMPLETE
+    return EXIT_CLEAN
 
 
 def render_text(
@@ -56,9 +98,12 @@ def render_text(
         for report in reports:
             if report.parse_error:
                 console.print(f"[red]parse error:[/] {report.parse_error}")
-        return 3
+        return EXIT_PARSE_ERROR
 
     total_packages = sum(len(r.lockfile.packages) for r in reports)
+    unpinned = sum(r.unpinned_count for r in reports)
+    unchecked = [u for r in reports for u in r.unchecked]
+    checked = total_packages - unpinned - len(unchecked)
     all_findings = [f for r in reports for f in r.findings]
     malicious = [f for f in all_findings if f.is_malicious]
     high_critical = [
@@ -98,13 +143,34 @@ def render_text(
         for finding in other:
             _print_finding(console, finding, malicious=False, ci=ci)
 
+    if unchecked:
+        console.print()
+        marker = "[bold yellow]UNCHECKED[/]" if not ci else "UNCHECKED"
+        console.print(
+            f"{marker} — {len(unchecked)} pinned package(s) could not be looked up"
+        )
+        by_reason: dict[str, list[str]] = {}
+        for u in unchecked:
+            by_reason.setdefault(u.reason, []).append(f"{u.package.name}@{u.package.version}")
+        for reason, names in by_reason.items():
+            preview = ", ".join(names[:5])
+            more = "" if len(names) <= 5 else f" (+{len(names) - 5} more)"
+            console.print(f"  {reason}: {preview}{more}")
+
     console.print()
-    if not all_findings:
-        line = Text(f"All {total_packages} packages clean.", style="green" if not ci else "")
+    if not all_findings and not unchecked:
+        line = Text(f"All {checked} pinned packages clean.", style="green" if not ci else "")
         if not ci:
             console.print(":white_check_mark:", line)
         else:
             console.print(line)
+    elif not all_findings:
+        line = Text(
+            f"INCOMPLETE — {checked} of {checked + len(unchecked)} pinned packages "
+            f"checked, no findings among them; {len(unchecked)} unchecked.",
+            style="yellow" if not ci else "",
+        )
+        console.print(line)
     else:
         summary = (
             f"{total_packages} packages scanned · "
@@ -112,13 +178,16 @@ def render_text(
             f"{len(high_critical)} high/critical · "
             f"{len(other)} low/medium"
         )
+        if unchecked:
+            summary += f" · {len(unchecked)} unchecked"
         console.print(summary)
+    if unpinned:
+        console.print(
+            f"note: {unpinned} unpinned entr{'y' if unpinned == 1 else 'ies'} "
+            f"(no exact version) not checked — pin them to get coverage."
+        )
 
-    if malicious:
-        return 1
-    if high_critical:
-        return 2
-    return 0
+    return exit_code_for(reports)
 
 
 def _print_finding(

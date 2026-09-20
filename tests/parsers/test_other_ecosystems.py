@@ -133,8 +133,9 @@ def test_yarn_berry_extracts_yaml_keys() -> None:
     by_name = {p.name: p.version for p in lf.packages}
     assert by_name["lodash"] == "4.17.21"
     assert by_name["@cap-js/sqlite"] == "2.2.2"
-    # workspace local entry — captured (won't match OSV, but recorded)
-    assert by_name["my-app"] == "0.0.0-use.local"
+    # workspace local entry — a placeholder version, not an installed
+    # registry package; it must not be counted as a checked package.
+    assert "my-app" not in by_name
 
 
 def test_yarn_missing_file_raises_parse_error(tmp_path: Path) -> None:

@@ -142,6 +142,10 @@ def _split_semver(value: str) -> tuple[tuple[int, ...] | None, str]:
     # Pull off build metadata (`+...`) — irrelevant to ordering.
     if "+" in value:
         value = value.split("+", 1)[0]
+    value = value.strip()
+    # `v1.2.3` / `=1.2.3` are common in lockfiles and campaign notes.
+    if value[:1] in ("v", "V", "="):
+        value = value[1:]
     prerelease = ""
     if "-" in value:
         value, prerelease = value.split("-", 1)
@@ -154,6 +158,10 @@ def _split_semver(value: str) -> tuple[tuple[int, ...] | None, str]:
 
 
 def _compare_release_tuples(a: tuple[int, ...], b: tuple[int, ...]) -> int:
+    # `1.0` and `1.0.0` are the same release.
+    width = max(len(a), len(b))
+    a = a + (0,) * (width - len(a))
+    b = b + (0,) * (width - len(b))
     if a == b:
         return 0
     return -1 if a < b else 1

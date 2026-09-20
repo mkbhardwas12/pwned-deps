@@ -28,7 +28,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from pwned_deps.advisory.types import Severity
-from pwned_deps.report.text import ScanReport
+from pwned_deps.report.text import ScanReport, exit_code_for
 
 INFORMATION_URI = "https://github.com/mkbhardwas12/pwned-deps"
 SARIF_SCHEMA_URI = (
@@ -41,23 +41,49 @@ def render_sarif(reports: Sequence[ScanReport], *, version: str) -> tuple[str, i
 
     rules: dict[str, dict[str, Any]] = {}
     results: list[dict[str, Any]] = []
-    parse_failed = False
-    high_or_critical_seen = False
-    malicious_seen = False
+    notifications: list[dict[str, Any]] = []
 
     for report in reports:
         if report.parse_error:
-            parse_failed = True
+            notifications.append(
+                {
+                    "level": "error",
+                    "message": {"text": f"parse error: {report.parse_error}"},
+                }
+            )
             continue
         for finding in report.findings:
             advisory = finding.advisory
             rule_id = advisory.id
             rules.setdefault(rule_id, _rule_for(advisory, finding.is_malicious))
             results.append(_result_for(report, finding))
-            if finding.is_malicious:
-                malicious_seen = True
-            elif advisory.severity in (Severity.HIGH, Severity.CRITICAL):
-                high_or_critical_seen = True
+        if report.unchecked:
+            names = ", ".join(
+                f"{u.package.name}@{u.package.version}" for u in report.unchecked[:10]
+            )
+            more = "" if len(report.unchecked) <= 10 else f" (+{len(report.unchecked) - 10} more)"
+            notifications.append(
+                {
+                    "level": "warning",
+                    "message": {
+                        "text": (
+                            f"{report.lockfile.path}: {len(report.unchecked)} pinned "
+                            f"package(s) could not be checked and are NOT clean: "
+                            f"{names}{more}"
+                        )
+                    },
+                }
+            )
+
+    exit_code = exit_code_for(reports)
+    invocation: dict[str, Any] = {
+        # SARIF semantics: the tool ran; an incomplete scan is a
+        # warning-level notification, a parse error is a failure.
+        "executionSuccessful": exit_code != 3,
+        "exitCode": exit_code,
+    }
+    if notifications:
+        invocation["toolExecutionNotifications"] = notifications
 
     sarif: dict[str, Any] = {
         "$schema": SARIF_SCHEMA_URI,
@@ -72,19 +98,11 @@ def render_sarif(reports: Sequence[ScanReport], *, version: str) -> tuple[str, i
                         "rules": list(rules.values()),
                     }
                 },
+                "invocations": [invocation],
                 "results": results,
             }
         ],
     }
-
-    if parse_failed:
-        exit_code = 3
-    elif malicious_seen:
-        exit_code = 1
-    elif high_or_critical_seen:
-        exit_code = 2
-    else:
-        exit_code = 0
 
     return json.dumps(sarif, indent=2, sort_keys=True), exit_code
 

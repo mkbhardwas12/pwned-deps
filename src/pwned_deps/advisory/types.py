@@ -45,7 +45,23 @@ class Advisory:
 
     @property
     def is_malicious(self) -> bool:
-        """Treat MAL-* OSV IDs and EXTRA-* (campaign) IDs as malicious."""
+        """Treat MAL-* OSV IDs and EXTRA-* (campaign) IDs as malicious.
+
+        GHSA malware advisories are also caught when the MAL-* alias
+        exists on the record, or when the record is tagged as malware
+        (GitHub publishes "Malicious code in <pkg>" before the OpenSSF
+        MAL-* mirror lands).
+        """
 
         upper_id = self.id.upper()
-        return upper_id.startswith("MAL-") or upper_id.startswith("EXTRA-")
+        if upper_id.startswith("MAL-") or upper_id.startswith("EXTRA-"):
+            return True
+        aliases = self.raw.get("aliases") if isinstance(self.raw, dict) else None
+        if isinstance(aliases, list) and any(
+            isinstance(a, str) and a.upper().startswith("MAL-") for a in aliases
+        ):
+            return True
+        db = self.raw.get("database_specific") if isinstance(self.raw, dict) else None
+        if isinstance(db, dict) and db.get("malware") is True:
+            return True
+        return self.summary.lower().startswith("malicious code in ")

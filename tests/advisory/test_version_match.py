@@ -28,6 +28,12 @@ from pwned_deps.advisory.version_match import matches
         ("1.9.9", ">=2.0", False),
         # Garbage doesn't crash, just no-match
         ("not-a-version", "1.2.3", False),
+        # 0.1.1 regressions: lockfile/campaign spelling differences
+        ("v1.2.3", "1.2.3", True),
+        ("1.2.3", "v1.2.3", True),
+        ("1.0", "1.0.0", True),
+        ("1.0.0", ">=1.0,<1.1", True),
+        ("1.2.3+build.7", "1.2.3", True),
         ("1.2.3", "garbage-spec", False),
     ],
 )

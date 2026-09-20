@@ -40,6 +40,44 @@ def test_clean_scan_renders_green_comment_with_marker_and_zero_exit() -> None:
     assert "| Severity |" not in body
 
 
+def test_incomplete_scan_is_not_rendered_as_clean() -> None:
+    body, code = render(
+        {
+            "schema_version": "1.1",
+            "tool": {"name": "pwned-deps", "version": "0.1.1"},
+            "lockfiles": [
+                {
+                    "path": "package-lock.json",
+                    "ecosystem": "npm",
+                    "findings": [],
+                    "unchecked": [
+                        {
+                            "package": "lodash",
+                            "version": "4.17.21",
+                            "ecosystem": "npm",
+                            "reason": "offline and not in cache",
+                        }
+                    ],
+                }
+            ],
+            "summary": {
+                "total_packages": 3,
+                "checked": 2,
+                "unchecked": 1,
+                "unpinned": 0,
+                "compromised": 0,
+                "high_critical": 0,
+                "other": 0,
+            },
+        }
+    )
+    assert code == 4
+    assert "Scan incomplete" in body
+    assert "Clean" not in body
+    assert "npm:lodash@4.17.21" in body
+    assert "offline and not in cache" in body
+
+
 def test_compromised_scan_renders_red_comment_and_exit_one() -> None:
     body, code = render(
         {

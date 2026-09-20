@@ -193,3 +193,138 @@ def test_live_lookup_lodash_known_vulnerable() -> None:
 
     advisories = result[_pkg("lodash", "4.17.20")]
     assert len(advisories) >= 1, "expected at least one advisory for lodash 4.17.20"
+
+
+# ---------------------------------------------------------------------------
+# 0.1.1 false-negative regressions
+# ---------------------------------------------------------------------------
+
+
+def test_offline_cache_miss_is_reported_as_unchecked(tmp_path: Path) -> None:
+    cache = Cache(tmp_path / "osv.sqlite")
+    with OsvClient(cache=cache, offline=True, sleep=_no_op_sleep) as client:
+        result = client.query_batch_detailed([_pkg("lodash", "4.17.15")])
+    assert result.advisories[_pkg("lodash", "4.17.15")] == []
+    assert [u.package.name for u in result.unchecked] == ["lodash"]
+    assert result.unchecked[0].reason == "offline and not in cache"
+
+
+def test_querybatch_transport_failure_marks_chunk_unchecked(httpx_mock: HTTPXMock) -> None:
+    import httpx
+
+    httpx_mock.add_exception(httpx.ConnectError("down"), is_reusable=True)
+    pkgs = [_pkg("a", "1.0.0"), _pkg("b", "2.0.0")]
+    with OsvClient(sleep=_no_op_sleep) as client:
+        result = client.query_batch_detailed(pkgs)
+    assert {u.package.name for u in result.unchecked} == {"a", "b"}
+    assert all("OSV query failed" in u.reason for u in result.unchecked)
+
+
+def test_failed_advisory_record_fetch_is_unchecked_and_not_cached(
+    tmp_path: Path, httpx_mock: HTTPXMock
+) -> None:
+    """Regression: a 500 on GET /v1/vulns/{id} used to drop the advisory
+    silently AND cache the package as clean for 24h."""
+    httpx_mock.add_response(
+        url="https://api.osv.dev/v1/querybatch",
+        method="POST",
+        json={"results": [{"vulns": [{"id": "MAL-2026-0001"}]}]},
+    )
+    httpx_mock.add_response(
+        url="https://api.osv.dev/v1/vulns/MAL-2026-0001",
+        method="GET",
+        status_code=500,
+        is_reusable=True,
+    )
+    cache = Cache(tmp_path / "osv.sqlite")
+    with OsvClient(cache=cache, sleep=_no_op_sleep) as client:
+        result = client.query_batch_detailed([_pkg("evil", "1.0.0")])
+    assert result.advisories[_pkg("evil", "1.0.0")] == []
+    assert len(result.unchecked) == 1
+    assert "MAL-2026-0001" in result.unchecked[0].reason
+    assert cache.get("npm", "evil", "1.0.0") is None
+
+
+def _advisory_with(httpx_mock: HTTPXMock, record: dict) -> Severity:
+    httpx_mock.add_response(
+        url="https://api.osv.dev/v1/querybatch",
+        method="POST",
+        json={"results": [{"vulns": [{"id": record["id"]}]}]},
+    )
+    httpx_mock.add_response(
+        url=f"https://api.osv.dev/v1/vulns/{record['id']}",
+        method="GET",
+        json=record,
+    )
+    with OsvClient(sleep=_no_op_sleep) as client:
+        result = client.query_batch([_pkg("pkg", "1.0.0")])
+    return result[_pkg("pkg", "1.0.0")][0].severity
+
+
+def test_cvss3_vector_string_yields_critical(httpx_mock: HTTPXMock) -> None:
+    """Regression: OSV `severity[].score` is a CVSS vector, not a number.
+    We used to map every such record to UNKNOWN, so a 9.8 CVE never
+    produced exit 2."""
+    sev = _advisory_with(
+        httpx_mock,
+        {
+            "id": "PYSEC-2026-1",
+            "summary": "rce",
+            "severity": [
+                {"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"}
+            ],
+        },
+    )
+    assert sev is Severity.CRITICAL
+
+
+def test_cvss3_vector_medium(httpx_mock: HTTPXMock) -> None:
+    sev = _advisory_with(
+        httpx_mock,
+        {
+            "id": "PYSEC-2026-2",
+            "severity": [
+                {"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:U/C:L/I:L/A:N"}
+            ],
+        },
+    )
+    assert sev is Severity.MEDIUM
+
+
+def test_cvss4_vector_high_impact_network(httpx_mock: HTTPXMock) -> None:
+    sev = _advisory_with(
+        httpx_mock,
+        {
+            "id": "GHSA-cvss4",
+            "severity": [
+                {
+                    "type": "CVSS_V4",
+                    "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
+                }
+            ],
+        },
+    )
+    assert sev is Severity.CRITICAL
+
+
+def test_ghsa_with_mal_alias_is_malicious_and_critical(httpx_mock: HTTPXMock) -> None:
+    """GitHub's 'Malicious code in X' GHSA records alias a MAL-* id.
+    They must count as malicious even when OSV returns only the GHSA."""
+    httpx_mock.add_response(
+        url="https://api.osv.dev/v1/querybatch",
+        method="POST",
+        json={"results": [{"vulns": [{"id": "GHSA-mal-0001"}]}]},
+    )
+    httpx_mock.add_response(
+        url="https://api.osv.dev/v1/vulns/GHSA-mal-0001",
+        method="GET",
+        json={
+            "id": "GHSA-mal-0001",
+            "summary": "Malicious code in pkg (npm)",
+            "aliases": ["MAL-2026-777"],
+        },
+    )
+    with OsvClient(sleep=_no_op_sleep) as client:
+        adv = client.query_batch([_pkg("pkg", "1.0.0")])[_pkg("pkg", "1.0.0")][0]
+    assert adv.is_malicious
+    assert adv.severity is Severity.CRITICAL

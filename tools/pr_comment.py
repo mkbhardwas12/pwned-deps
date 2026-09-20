@@ -48,6 +48,10 @@ def render(payload: dict) -> tuple[str, int]:
     compromised = int(summary.get("compromised", 0) or 0)
     high_critical = int(summary.get("high_critical", 0) or 0)
     total_packages = int(summary.get("total_packages", 0) or 0)
+    # schema_version 1.1+ fields; absent (0) on 1.0 payloads.
+    unchecked = int(summary.get("unchecked", 0) or 0)
+    unpinned = int(summary.get("unpinned", 0) or 0)
+    checked = int(summary.get("checked", total_packages - unpinned - unchecked) or 0)
 
     if compromised:
         exit_code = 1
@@ -55,9 +59,26 @@ def render(payload: dict) -> tuple[str, int]:
     elif high_critical:
         exit_code = 2
         headline = f"⚠️ **{high_critical} HIGH/CRITICAL CVE(s)** detected"
+    elif unchecked:
+        exit_code = 4
+        headline = (
+            f"⚠️ **Scan incomplete** — {unchecked} pinned package(s) could not be "
+            f"looked up (offline cache miss or OSV unreachable). "
+            f"No findings among the {checked} that were checked."
+        )
     else:
         exit_code = 0
-        headline = f"✅ Clean — no compromised packages in {total_packages} pinned dependencies."
+        headline = f"✅ Clean — no compromised packages in {checked} pinned dependencies."
+
+    scanned_note = (
+        f"_Checked {checked} pinned packages across {len(lockfiles)} lockfile(s) "
+        f"with pwned-deps `{tool_version}`."
+    )
+    if unchecked:
+        scanned_note += f" {unchecked} unchecked."
+    if unpinned:
+        scanned_note += f" {unpinned} unpinned entries not checked."
+    scanned_note += "_"
 
     lines: list[str] = [
         MARKER,
@@ -65,15 +86,31 @@ def render(payload: dict) -> tuple[str, int]:
         "",
         headline,
         "",
-        f"_Scanned {total_packages} pinned packages across "
-        f"{len(lockfiles)} lockfile(s) with pwned-deps `{tool_version}`._",
+        scanned_note,
         "",
     ]
 
     if compromised or high_critical:
         lines.extend(_render_findings_table(lockfiles))
+    if unchecked:
+        lines.extend(_render_unchecked_list(lockfiles))
 
     return "\n".join(lines).rstrip() + "\n", exit_code
+
+
+def _render_unchecked_list(lockfiles: Iterable[dict]) -> list[str]:
+    rows: list[str] = []
+    for lf in lockfiles:
+        for u in lf.get("unchecked", []) or []:
+            rows.append(
+                f"- `{u.get('ecosystem', '?')}:{u.get('package', '?')}@{u.get('version', '?')}`"
+                f" — {u.get('reason', '?')}"
+            )
+    if not rows:
+        return []
+    shown = rows[:20]
+    more = [f"- …and {len(rows) - 20} more"] if len(rows) > 20 else []
+    return ["<details><summary>Unchecked packages</summary>", "", *shown, *more, "", "</details>"]
 
 
 def _render_findings_table(lockfiles: Iterable[dict]) -> list[str]:

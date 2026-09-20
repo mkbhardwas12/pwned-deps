@@ -115,7 +115,14 @@ def _from_v2_packages(data: dict, *, lockfile_path: str) -> list[Package]:
         version = entry.get("version")
         if not isinstance(version, str) or not version:
             continue
-        name = _name_from_packages_key(key)
+        # Aliased installs (`npm i foo@npm:real-pkg@1.0.0`) keep the alias
+        # in the key and the real registry name in `name`. The advisory
+        # lookup must use the real name or the hit is silently missed.
+        real_name = entry.get("name")
+        if isinstance(real_name, str) and real_name:
+            name: str | None = real_name
+        else:
+            name = _name_from_packages_key(key)
         if name is None:
             continue
         results.append(
@@ -153,6 +160,23 @@ def _name_from_packages_key(key: str) -> str | None:
     return suffix.split("/", 1)[0]
 
 
+def _resolve_npm_alias(name: str, version: str) -> tuple[str, str]:
+    """``("alias", "npm:@scope/real@1.2.3")`` -> ``("@scope/real", "1.2.3")``."""
+
+    if not version.startswith("npm:"):
+        return name, version
+    spec = version[len("npm:") :]
+    # Scoped names contain a leading '@'; the version separator is the
+    # last '@' after the first character.
+    at_idx = spec.rfind("@")
+    if at_idx <= 0:
+        return name, version
+    real_name, real_version = spec[:at_idx], spec[at_idx + 1 :]
+    if not real_name or not real_version:
+        return name, version
+    return real_name, real_version
+
+
 def _from_v1_dependencies(data: dict, *, lockfile_path: str) -> list[Package]:
     """Walk the recursive ``dependencies`` tree of a v1 lockfile."""
 
@@ -181,6 +205,8 @@ def _walk_v1(
             continue
         version = entry.get("version")
         if isinstance(version, str) and version:
+            # v1 aliases: `"alias": {"version": "npm:real-pkg@1.2.3"}`.
+            name, version = _resolve_npm_alias(name, version)
             out.append(
                 Package(
                     name=name,

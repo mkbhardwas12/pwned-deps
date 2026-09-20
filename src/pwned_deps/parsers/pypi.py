@@ -88,19 +88,18 @@ def _parse_requirements_txt(path: Path) -> Lockfile:
         # Strip line continuation backslashes.
         if line.endswith("\\"):
             line = line[:-1].rstrip()
+        # Environment markers (`; python_version < "3.12"`) can contain
+        # `==` themselves — drop them BEFORE looking for the pin.
+        if ";" in line:
+            line = line.split(";", 1)[0].strip()
+        # Per-requirement options on the same line (`--hash=sha256:...`).
+        if " --" in line:
+            line = line.split(" --", 1)[0].strip()
         # Strip extras: `pkg[extra1,extra2]==1.2.3` → `pkg==1.2.3`.
         line = _drop_extras(line)
-        # Try to find an exact-pin operator.
-        if "==" in line:
-            name, _, rest = line.partition("==")
-            name = name.strip()
-            version = rest.strip()
-            # Trim trailing markers / environment selectors like
-            # `; python_version < "3.12"`.
-            if ";" in version:
-                version = version.split(";", 1)[0].strip()
-            if not name or not version:
-                continue
+        pinned = _exact_pin(line)
+        if pinned is not None:
+            name, version = pinned
             out.append(
                 Package(
                     name=_canonicalise(name),
@@ -147,6 +146,31 @@ def _drop_extras(line: str) -> str:
 
 
 _NAME_BOUNDARY = "<>=!~ "
+
+
+def _exact_pin(line: str) -> tuple[str, str] | None:
+    """Return ``(name, version)`` if ``line`` pins one exact version.
+
+    Handles ``pkg==1.2.3``, ``pkg === 1.2.3`` (arbitrary equality) and
+    multi-clause specs like ``pkg==1.2.3,<2``. Wildcards (``==1.2.*``)
+    are ranges, not pins, and return ``None``.
+    """
+
+    name = _extract_name_loose(line)
+    if not name:
+        return None
+    spec = line[len(name) :].strip()
+    if not spec:
+        return None
+    for clause in spec.split(","):
+        clause = clause.strip()
+        if not clause.startswith("=="):
+            continue
+        version = clause.lstrip("=").strip()
+        if not version or version.endswith("*"):
+            return None
+        return name, version.split()[0]
+    return None
 
 
 def _extract_name_loose(line: str) -> str | None:

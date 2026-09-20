@@ -151,6 +151,7 @@ def test_maintainer_suspect_marks_finding_non_malicious_high_severity() -> None:
     from unittest.mock import MagicMock
 
     from pwned_deps.advisory.matcher import Matcher
+    from pwned_deps.advisory.osv_client import BatchResult
 
     feed = ExtrasFeed.from_dict(
         {
@@ -177,7 +178,7 @@ def test_maintainer_suspect_marks_finding_non_malicious_high_severity() -> None:
     )
     lf = _lockfile(_pkg("watched-pkg", "3.1.4"))
     osv = MagicMock()
-    osv.query_batch.return_value = {}
+    osv.query_batch_detailed.return_value = BatchResult()
     matcher = Matcher(osv_client=osv, extras=feed)
     findings = matcher.match(lf)
     assert len(findings) == 1

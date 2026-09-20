@@ -124,21 +124,46 @@ def _split_v1_descriptors(line: str) -> list[str]:
 
 
 def _name_from_descriptor(descriptor: str) -> str | None:
-    """``lodash@^4.17.15`` -> ``lodash``; ``@scope/n@^1`` -> ``@scope/n``."""
+    """``lodash@^4.17.15`` -> ``lodash``; ``@scope/n@^1`` -> ``@scope/n``.
+
+    Aliases (``alias@npm:real@^1``) resolve to the *real* registry name,
+    and Berry protocol wrappers (``patch:lodash@npm%3A4.17.21#...``)
+    are unwrapped, because the advisory lookup must use the name the
+    registry knows the package by.
+    """
+
+    descriptor = descriptor.strip()
+    # Berry protocol wrappers: `patch:`, `portal:`, `link:`, `exec:` ...
+    # A bare descriptor never contains ':' before its first '@'.
+    colon = descriptor.find(":")
+    first_at = descriptor.find("@", 1)
+    if colon >= 0 and (first_at < 0 or colon < first_at):
+        descriptor = descriptor[colon + 1 :]
+
+    name, _, spec = _split_name_and_range(descriptor)
+    if not name:
+        return None
+    if spec.startswith("npm:"):
+        # `npm:^1.2.3` is a plain range; `npm:real@^1.2.3` is an alias.
+        aliased, sep, _ = _split_name_and_range(spec[len("npm:") :])
+        if sep and aliased:
+            return aliased
+    return name
+
+
+def _split_name_and_range(descriptor: str) -> tuple[str, str, str]:
+    """Split ``name@range`` respecting scoped names. Returns (name, '@', range)."""
 
     if descriptor.startswith("@"):
-        # Find the '@' AFTER the first '/'.
         slash = descriptor.find("/")
         if slash < 0:
-            return None
+            return "", "", ""
         at_idx = descriptor.find("@", slash)
-        if at_idx < 0:
-            return descriptor or None
-        return descriptor[:at_idx]
-    at_idx = descriptor.find("@")
+    else:
+        at_idx = descriptor.find("@")
     if at_idx < 0:
-        return descriptor or None
-    return descriptor[:at_idx]
+        return descriptor, "", ""
+    return descriptor[:at_idx], "@", descriptor[at_idx + 1 :]
 
 
 # ---------------------------------------------------------------------------
@@ -164,6 +189,9 @@ def _parse_berry(path: Path, text: str) -> Lockfile:
         version = entry.get("version")
         if not isinstance(version, str) or not version:
             continue
+        # Workspace / portal / link entries carry a placeholder version.
+        if version == "0.0.0-use.local":
+            continue
         name = _name_from_berry_key(key)
         if not name:
             continue
@@ -187,16 +215,4 @@ def _name_from_berry_key(key: str) -> str | None:
     Multiple descriptors join with ``, `` like in v1.
     """
 
-    first_descriptor = key.split(",")[0].strip()
-    if first_descriptor.startswith("@"):
-        slash = first_descriptor.find("/")
-        if slash < 0:
-            return None
-        at_idx = first_descriptor.find("@", slash)
-        if at_idx < 0:
-            return first_descriptor or None
-        return first_descriptor[:at_idx]
-    at_idx = first_descriptor.find("@")
-    if at_idx < 0:
-        return first_descriptor or None
-    return first_descriptor[:at_idx]
+    return _name_from_descriptor(key.split(",")[0])

@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pwned_deps.advisory.extras import ExtrasFeed
-from pwned_deps.advisory.osv_client import OsvClient
+from pwned_deps.advisory.osv_client import OsvClient, Unchecked
 from pwned_deps.advisory.types import Advisory, Severity
 from pwned_deps.parsers.base import Lockfile, Package
 
@@ -25,6 +25,14 @@ class Finding:
         return self.advisory.severity
 
 
+@dataclass
+class MatchResult:
+    """Findings plus the packages whose lookup did not complete."""
+
+    findings: list[Finding] = field(default_factory=list)
+    unchecked: list[Unchecked] = field(default_factory=list)
+
+
 class Matcher:
     """Run a lockfile through OSV + extras and produce findings."""
 
@@ -33,6 +41,9 @@ class Matcher:
         self._extras = extras
 
     def match(self, lockfile: Lockfile) -> list[Finding]:
+        return self.match_detailed(lockfile).findings
+
+    def match_detailed(self, lockfile: Lockfile) -> MatchResult:
         out: list[Finding] = []
 
         # Extras campaigns are checked first so the user always sees
@@ -57,8 +68,8 @@ class Matcher:
         # OSV pass — query every package, including ones already
         # flagged by extras (an extras campaign and an OSV MAL-* may
         # both apply, and we want to show both).
-        results = self._osv.query_batch(_match_targets(lockfile.packages))
-        for pkg, advisories in results.items():
+        batch = self._osv.query_batch_detailed(_match_targets(lockfile.packages))
+        for pkg, advisories in batch.advisories.items():
             for adv in advisories:
                 key = (pkg.name, pkg.version, adv.id)
                 if key in seen:
@@ -72,7 +83,7 @@ class Matcher:
                         campaign_name=None,
                     )
                 )
-        return out
+        return MatchResult(findings=out, unchecked=list(batch.unchecked))
 
 
 def _match_targets(packages: Sequence[Package]) -> list[Package]:

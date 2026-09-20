@@ -130,6 +130,33 @@ def test_sarif_partial_fingerprints_are_stable() -> None:
     assert len(fp_a["primaryLocationLineHash"]) == 64  # sha256 hex
 
 
+def test_sarif_unchecked_packages_surface_as_notification_and_exit_four() -> None:
+    from pwned_deps.advisory.osv_client import Unchecked
+
+    pkg = Package(
+        name="lodash",
+        version="4.17.15",
+        ecosystem=Ecosystem.NPM,
+        lockfile_path="tests/fixtures/npm/v1.lock.json",
+    )
+    report = ScanReport(
+        lockfile=Lockfile(path=Path(pkg.lockfile_path), ecosystem=Ecosystem.NPM, packages=(pkg,)),
+        findings=[],
+        unchecked=[Unchecked(pkg, "offline and not in cache")],
+    )
+    text, exit_code = render_sarif([report], version="0.1.1")
+    payload = json.loads(text)
+    jsonschema.validate(payload, SARIF_SCHEMA)
+    assert exit_code == 4
+    invocation = payload["runs"][0]["invocations"][0]
+    assert invocation["executionSuccessful"] is True
+    assert invocation["exitCode"] == 4
+    note = invocation["toolExecutionNotifications"][0]
+    assert note["level"] == "warning"
+    assert "lodash@4.17.15" in note["message"]["text"]
+    assert "NOT clean" in note["message"]["text"]
+
+
 def test_cli_format_sarif_emits_valid_sarif(tmp_path: Path, httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         url="https://api.osv.dev/v1/querybatch",

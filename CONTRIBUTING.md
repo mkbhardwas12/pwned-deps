@@ -54,7 +54,7 @@ This is the highest-leverage contribution.
      advisory (Wiz, SecurityBridge, Sophos, Snyk, GHSA, OSV).
      Name the source. Do not cite Twitter/X threads.
    - `ecosystem` — one of `npm`, `PyPI`, `crates.io`, `Go`,
-     `Maven`, `RubyGems`. **Case matters** — these are the
+     `Maven`, `RubyGems`, `Packagist`. **Case matters** — these are the
      [OSV ecosystem strings](https://ossf.github.io/osv-schema/#defined-ecosystems)
      and the matcher compares them case-sensitively. Lowercase
      `pypi` will silently miss every PyPI lockfile.

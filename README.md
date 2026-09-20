@@ -1,23 +1,39 @@
 # pwned-deps
 
-> **Drop your lockfile in. Get a red/green answer in 5 seconds.**
+> **Drop your lockfile in. Get a red/green answer in 5 seconds — and
+> never a green one for a package that wasn't actually checked.**
 >
 > A multi-ecosystem scanner for compromised package versions —
 > account hijacks, typosquats, dependency-confusion, retroactively
 > trojanised releases — across npm, PyPI, Maven, Cargo, Go, RubyGems.
 
-<!-- TODO(logo): place a 256x256 PNG at docs/logo.png and reference it here. -->
-
-![pwned-deps demo: scanning an npm lockfile and flagging a Mini Shai-Hulud compromised package](docs/demo.gif)
-
-> Re-render the demo any time the CLI's output changes:
-> `make demo-gif` (Docker; no host installs).
-
 [![CI](https://github.com/mkbhardwas12/pwned-deps/actions/workflows/ci.yml/badge.svg)](https://github.com/mkbhardwas12/pwned-deps/actions/workflows/ci.yml)
 [![PyPI version](https://img.shields.io/pypi/v/pwned-deps.svg)](https://pypi.org/project/pwned-deps/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/pwned-deps.svg)](https://pypistats.org/packages/pwned-deps)
 [![Python versions](https://img.shields.io/pypi/pyversions/pwned-deps.svg)](https://pypi.org/project/pwned-deps/)
-[![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
+[![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](#verify-a-release-with-slsa-provenance)
+[![GitHub Action](https://img.shields.io/badge/GitHub%20Action-pwned--deps-2088FF?logo=githubactions&logoColor=white)](#github-actions-one-line)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
+```bash
+pipx install pwned-deps
+pwned-deps check .                 # every lockfile in the tree → exit 0/1/2/3/4
+pwned-deps check . --min-age 7     # + refuse anything published < 7 days ago
+```
+
+**Why this and not just `npm audit` / `osv-scanner`?** Three things
+they don't do:
+
+| | pwned-deps |
+|---|---|
+| **Campaigns before OSV has them** | A curated, Sigstore-signed feed of named incidents (event-stream → xz → Shai-Hulud → Mini Shai-Hulud) with tarball SHA-256s, IDE-persistence IoCs and remediation steps. A maintainer hijack can be described as a *time window* and confirmed against the registry's publish timestamp for **your** pinned version. |
+| **A cooling-off gate** | `--min-age N` blocks versions published fewer than N days ago — the only defence that works in the hours *before* any advisory exists. Works on any lockfile, in any CI. |
+| **Honest exit codes** | Offline cache miss? OSV down? You get `UNCHECKED` + exit **4**, not "All clean". A scanner that can't tell "checked, nothing found" from "didn't look" is worse than none. |
+
+**Try it without installing:** the [in-browser lockfile simulator](https://mkbhardwas12.github.io/pwned-deps/simulator.html)
+replays `pwned-deps check` against real campaign data.
+
+![pwned-deps demo: scanning an npm lockfile and flagging a Mini Shai-Hulud compromised package](docs/demo.gif)
 
 ## Table of contents
 

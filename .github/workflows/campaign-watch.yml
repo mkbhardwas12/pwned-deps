@@ -1,0 +1,98 @@
+name: Campaign watch
+
+# Daily: pull the GitHub Advisory Database malware feed, ask the
+# registries how old each affected package is, and keep ONE sticky
+# issue ("Campaign watch") updated with the packages that look like
+# account hijacks of established projects. Those are the incidents
+# that belong in extras.json as `compromised_maintainers` windows and
+# that users need to hear about in the first hour.
+#
+# Also opens the maintainer's eyes to campaigns early enough to ship a
+# release + write-up while the incident is still news.
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: Look-back window in hours
+        required: false
+        default: "24"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: campaign-watch
+  cancel-in-progress: true
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Fetch recent malware advisories (GitHub Advisory Database)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api graphql -f query='{ securityAdvisories(first: 100, orderBy: {field: PUBLISHED_AT, direction: DESC}, classifications: [MALWARE]) { nodes { ghsaId summary publishedAt vulnerabilities(first: 5) { nodes { package { ecosystem name } vulnerableVersionRange } } } } }' > advisories.json
+
+      - name: Triage against registry publish history
+        env:
+          HOURS: ${{ github.event.inputs.hours || '30' }}
+        run: |
+          python tools/campaign_watch.py advisories.json "$HOURS" > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          if grep -q '### Likely account hijacks' report.md; then
+            echo "hijacks=true" >> "$GITHUB_ENV"
+          else
+            echo "hijacks=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Update the sticky "Campaign watch" issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          title="Campaign watch: likely account hijacks in the GHSA malware feed"
+          number=$(gh issue list --repo "$REPO" --state open --label campaign-watch --json number,title \
+                   --jq ".[] | select(.title==\"$title\") | .number" | head -1)
+          {
+            echo "This issue is rewritten automatically every 6 hours. Hijack candidates are the packages to research and add to \`extras.json\` as a \`compromised_maintainers\` window — then tag a release."
+            echo
+            cat report.md
+          } > body.md
+          if [ -z "$number" ]; then
+            gh label create campaign-watch --repo "$REPO" --color D93F0B \
+              --description "Automated triage of the GHSA malware feed" --force
+            gh issue create --repo "$REPO" --title "$title" --label campaign-watch --body-file body.md
+          else
+            # Only notify (comment) when a NEW hijack candidate appears;
+            # editing the body alone is silent.
+            gh issue view "$number" --repo "$REPO" --json body --jq .body \
+              | grep -oE '^\| `[a-z]+:[^`]+`' | sort -u > old.txt || true
+            grep -oE '^\| `[a-z]+:[^`]+`' report.md | sort -u > new.txt || true
+            gh issue edit "$number" --repo "$REPO" --body-file body.md
+            if [ "$hijacks" = "true" ] && ! comm -13 old.txt new.txt | grep -q .; then
+              echo "no new hijack candidates; body refreshed silently"
+            elif [ "$hijacks" = "true" ]; then
+              {
+                echo "New hijack candidate(s) since the last run:"
+                echo
+                comm -13 old.txt new.txt | sed 's/^| //; s/^/- /'
+                echo
+                echo "Full table is in the issue body above."
+              } > comment.md
+              gh issue comment "$number" --repo "$REPO" --body-file comment.md
+            fi
+          fi

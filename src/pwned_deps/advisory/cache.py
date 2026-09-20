@@ -75,6 +75,17 @@ _CREATE_TABLES = (
     CREATE INDEX IF NOT EXISTS ix_pkg
         ON advisories (ecosystem, package, version)
     """,
+    # Registry publish timestamps are immutable facts — no TTL.
+    """
+    CREATE TABLE IF NOT EXISTS publish_times (
+        ecosystem    TEXT NOT NULL,
+        package      TEXT NOT NULL,
+        version      TEXT NOT NULL,
+        published_at TEXT NOT NULL,
+        fetched_at   INTEGER NOT NULL,
+        PRIMARY KEY (ecosystem, package, version)
+    )
+    """,
 )
 
 
@@ -175,6 +186,28 @@ class Cache:
                 "(ecosystem, package, version, fetched_at) "
                 "VALUES (?, ?, ?, ?)",
                 (ecosystem, package, version, now),
+            )
+
+    def get_publish_time(self, ecosystem: str, package: str, version: str) -> str | None:
+        """Return the cached ISO-8601 publish timestamp, or ``None``."""
+
+        cur = self._conn.execute(
+            "SELECT published_at FROM publish_times "
+            "WHERE ecosystem=? AND package=? AND version=?",
+            (ecosystem, package, version),
+        )
+        row = cur.fetchone()
+        return None if row is None else str(row[0])
+
+    def put_publish_time(
+        self, ecosystem: str, package: str, version: str, published_at: str
+    ) -> None:
+        with self._tx():
+            self._conn.execute(
+                "INSERT OR REPLACE INTO publish_times "
+                "(ecosystem, package, version, published_at, fetched_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (ecosystem, package, version, published_at, int(self._clock())),
             )
 
     def close(self) -> None:

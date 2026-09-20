@@ -1,6 +1,6 @@
 # pwned-deps GitHub Action
 #
-# Composite action — `uses: mkbhardwas12/pwned-deps@v0.1.1`.
+# Composite action — `uses: mkbhardwas12/pwned-deps@v0.2.0`.
 #
 # Scans every recognised lockfile under the given path, emits SARIF,
 # and (if `upload-sarif: true`) uploads it to GitHub Code Scanning.
@@ -8,8 +8,8 @@
 # Exit codes from the underlying CLI:
 #   0  clean — every pinned package was checked, nothing found
 #   1  at least one MAL-* / EXTRA-* hit (compromised package)
-#   2  needs attention: HIGH/CRITICAL CVE or SUSPECT maintainer
-#      (no malicious hits)
+#   2  needs attention: HIGH/CRITICAL CVE, SUSPECT maintainer, or
+#      --min-age policy violation (no malicious hits)
 #   3  parse error
 #   4  incomplete — some pinned packages could NOT be looked up
 #      (offline cache miss, OSV unreachable). NOT clean.
@@ -49,7 +49,7 @@ inputs:
                          Used by this repo's action self-test, and by
                          forks developing against an unreleased revision.
     required: false
-    default: "0.1.1"
+    default: "0.2.0"
   fail-on:
     description: |
       Which exit codes fail the step.
@@ -59,6 +59,13 @@ inputs:
       `never`                 — never fail (report-only).
     required: false
     default: compromised
+  min-age:
+    description: |
+      Days. If set, flag any pinned npm/PyPI package whose exact version
+      was published fewer than this many days ago (exit 2, "TOO NEW").
+      Adds registry.npmjs.org / pypi.org to the network footprint.
+    required: false
+    default: ""
   output-sarif:
     description: Path to write the SARIF report. Empty = do not write SARIF.
     required: false
@@ -121,11 +128,19 @@ runs:
         INPUT_OFFLINE: ${{ inputs.offline }}
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
         INPUT_OUTPUT_SARIF: ${{ inputs.output-sarif }}
+        INPUT_MIN_AGE: ${{ inputs.min-age }}
       run: |
         set +e
         args=(check "$INPUT_PATH" --ci)
         if [ "$INPUT_OFFLINE" = "true" ]; then
           args+=(--offline)
+        fi
+        if [ -n "$INPUT_MIN_AGE" ]; then
+          if ! printf '%s' "$INPUT_MIN_AGE" | grep -Eq '^[0-9]+$'; then
+            echo "::error::min-age must be a whole number of days, got: $INPUT_MIN_AGE"
+            exit 1
+          fi
+          args+=(--min-age "$INPUT_MIN_AGE")
         fi
 
         # Always produce a text run for the workflow log.
@@ -143,7 +158,7 @@ runs:
         case "$rc" in
           0) ;;
           1) echo "::error::pwned-deps: compromised package(s) found (exit 1)" ;;
-          2) echo "::warning::pwned-deps: findings need attention — HIGH/CRITICAL or SUSPECT (exit 2)" ;;
+          2) echo "::warning::pwned-deps: findings need attention — HIGH/CRITICAL, SUSPECT or min-age (exit 2)" ;;
           3) echo "::warning::pwned-deps: a lockfile could not be parsed — nothing in it was checked (exit 3)" ;;
           4) echo "::warning::pwned-deps: scan INCOMPLETE — some pinned packages were not checked and are NOT clean (exit 4)" ;;
           *) echo "::error::pwned-deps: unexpected exit code $rc" ;;

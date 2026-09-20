@@ -4,4 +4,4 @@ Public surface at this stage is just `__version__`. Real APIs land in
 later steps of the build plan.
 """
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"

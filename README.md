@@ -68,11 +68,11 @@ published malicious versions.
 | **What**              | A 5-second red/green answer to "is anything in my lockfile pwned?" |
 | **Who it's for**      | Application devs, SREs, AppSec / DFIR responders during an active incident |
 | **Inputs**            | Lockfiles (npm, PyPI, Maven, Cargo, Go, RubyGems) — never source, never tarballs |
-| **Data sources**      | [OSV.dev](https://osv.dev) public API + curated `extras.json` campaign feed (signed, sigstore + Rekor) |
+| **Data sources**      | [OSV.dev](https://osv.dev) public API + curated `extras.json` campaign feed (signed, sigstore + Rekor) + registry publish timestamps (npm, PyPI) to resolve maintainer-compromise windows and enforce `--min-age` |
 | **Outputs**           | Coloured terminal report, JSON, SARIF (GitHub Code Scanning) |
 | **Four commands**     | `pwned-deps check <lockfile>` (one-shot scan) · `pwned-deps audit-repo <dir>` (forensic file-IoC scan) · `pwned-deps watch <lockfile> --baseline <file>` (daily baseline + delta alert) · `pwned-deps report <scans> -o <html>` (org-wide HTML dashboard) |
 | **Failure mode**      | Exit `1` on confirmed compromise — wire that to your CI gate. Exit `4` when a scan is *incomplete* (a pinned package could not be looked up) — never reported as clean |
-| **Network footprint** | One host: `api.osv.dev`. No telemetry. Offline mode supported (uncached packages are reported as UNCHECKED, not clean). |
+| **Network footprint** | `api.osv.dev` always; `registry.npmjs.org` / `pypi.org` only when a SUSPECT hit needs a publish timestamp or `--min-age` is set. No telemetry. Offline mode supported (uncached packages are reported as UNCHECKED, not clean). |
 | **Trust model**       | Apache-2.0, SLSA L3 build provenance (hard release gate, verified with `slsa-verifier` before publish), OIDC-only PyPI publishing, SHA-pinned Actions, locked container CI |
 
 ## Architecture
@@ -97,6 +97,7 @@ flowchart LR
 
     subgraph Data["Advisory data"]
         OSV[("api.osv.dev<br/>public API")]
+        REG[("registry.npmjs.org<br/>pypi.org<br/>publish timestamps")]
         CACHE[("~/.cache/pwned-deps/<br/>osv.sqlite (24h TTL)")]
         EX[("extras.json<br/>curated feed,<br/>sigstore-signed")]
     end
@@ -105,6 +106,7 @@ flowchart LR
     REPO --> A
     M <--> CACHE
     CACHE <-.refresh.-> OSV
+    M <-.SUSPECT windows / --min-age.-> REG
     M <-- iocs/file_iocs --> EX
     A <-- file_iocs --> EX
     M --> R
@@ -143,6 +145,7 @@ sequenceDiagram
 | `src/pwned_deps/cli.py`             | Click command surface; `check`, `watch`, `audit-repo`, `report` |
 | `src/pwned_deps/parsers/*.py`       | One parser per ecosystem; pure text → tuples         |
 | `src/pwned_deps/advisory/osv_client.py` | OSV.dev HTTP client (httpx, batched); tracks unchecked packages |
+| `src/pwned_deps/advisory/registry.py` | npm / PyPI publish-timestamp client (no-TTL cache) |
 | `src/pwned_deps/advisory/cache.py`  | SQLite cache, TTL, offline mode                      |
 | `src/pwned_deps/advisory/matcher.py`| Severity + ID dedup; OSV ⨯ extras.json merge         |
 | `src/pwned_deps/advisory/version_match.py` | Minimal range matcher for `extras.json` version specs (OSV matches server-side) |
@@ -280,6 +283,9 @@ pwned-deps update
 # JSON for scripting
 pwned-deps check . --format json
 
+# Cooling-off policy: flag npm/PyPI versions published < 7 days ago (exit 2)
+pwned-deps check . --min-age 7
+
 # SARIF for GitHub Code Scanning
 pwned-deps check . --format sarif > pwned-deps.sarif
 ```
@@ -290,7 +296,7 @@ Exit codes:
 |------|----------------------------------------|
 | `0`  | Clean — every pinned package was checked, nothing found |
 | `1`  | At least one MAL-* / EXTRA-* hit (compromised package) |
-| `2`  | Needs attention: HIGH/CRITICAL CVE or SUSPECT maintainer hit (no malicious hits) |
+| `2`  | Needs attention: HIGH/CRITICAL CVE, SUSPECT maintainer hit, or `--min-age` policy violation (no malicious hits) |
 | `3`  | Parse error                            |
 | `4`  | Incomplete — some pinned packages could **not** be looked up (offline cache miss, OSV unreachable). Not clean. |
 
@@ -457,11 +463,34 @@ Each campaign can declare a `compromised_maintainers` block:
 
 Any package whose name appears in that list is reported as a
 **SUSPECT** finding (HIGH severity → exit 2), distinct from the
-CONFIRMED **MALICIOUS** hits (CRITICAL → exit 1). The summary spells
-out the compromise window so a human can decide whether their
-install pre-dates it. Once specific bad versions are confirmed, move
-them into the `packages` block and the same lockfile re-scan will
-upgrade from SUSPECT to MALICIOUS automatically.
+CONFIRMED **MALICIOUS** hits (CRITICAL → exit 1). Since 0.2.0 the
+matcher then asks the registry *when* your pinned version was
+published (`registry.npmjs.org` `time[]`, `pypi.org` upload time):
+
+| Publish time vs. window            | Result                                   |
+|------------------------------------|------------------------------------------|
+| inside `[compromised_after, compromised_until]` | **CONFIRMED** — `EXTRA-*`, CRITICAL, exit 1 |
+| outside the window                 | cleared — no finding                     |
+| unavailable (offline, 404, yanked) | stays **SUSPECT** — exit 2               |
+
+That is the strategic shift in the feed: a campaign entry no longer
+has to enumerate every bad version (OSV `MAL-*` will do that
+eventually). A maintainer handle plus a time window, published in
+the first hour of an incident, is enough for `pwned-deps` to give
+every user a *confirmed* yes/no against their own lockfile. Once
+exact versions are known, add them to `packages` and they take
+precedence.
+
+**"Can we just not install anything that is brand new?"**
+`--min-age DAYS` enforces a cooling-off period: every pinned npm/PyPI
+version published fewer than `DAYS` days ago is reported under
+**TOO NEW** (rule id `MIN-AGE`, HIGH, exit 2). Most hijacked releases
+are pulled within days, so a 3–7 day quarantine blocks the window
+before any advisory exists. A version whose publish time cannot be
+fetched is reported as UNCHECKED (exit 4) rather than assumed old.
+Ecosystems without a timestamp source (Cargo, Go, Maven, RubyGems)
+are skipped by the policy. The GitHub Action exposes it as
+`min-age:`.
 
 **"How do we trust the campaign feed itself?"**
 Every change to `extras.json` on `main` is signed with sigstore
@@ -477,10 +506,11 @@ can't escape the append-only log.
 ### GitHub Actions (one line)
 
 ```yaml
-- uses: mkbhardwas12/pwned-deps@v0.1.1
+- uses: mkbhardwas12/pwned-deps@v0.2.0
   with:
     path: .
     fail-on: compromised   # also: `incomplete` (1/3/4), `any` (all non-zero) or `never`
+    min-age: "3"           # optional cooling-off policy, days
     upload-sarif: true     # writes to GitHub Code Scanning
 ```
 
@@ -566,7 +596,7 @@ become clickable.
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/mkbhardwas12/pwned-deps
-    rev: v0.1.1
+    rev: v0.2.0
     hooks:
       - id: pwned-deps           # online (api.osv.dev)
       # or:
@@ -614,9 +644,11 @@ the safety contract:
   A `make verify-safety` target enforces this with a Python regex
   scanner; the negative self-test plants `eval("1+1")` and proves the
   scanner catches it.
-* **Network allow-list.** The CLI talks only to `api.osv.dev` (and an
-  opt-in `--feed-file PATH` you explicitly hand to it). No telemetry,
-  no analytics, no crash reporting.
+* **Network allow-list.** The CLI talks to `api.osv.dev`, plus
+  `registry.npmjs.org` / `pypi.org` only when a SUSPECT hit needs a
+  publish timestamp or `--min-age` is set (and an opt-in
+  `--feed-file PATH` you explicitly hand to it). GET/POST of package
+  coordinates only; no telemetry, no analytics, no crash reporting.
 * **Container-only dev** with non-root `appuser` UID 1000, network
   denied during tests, source mounted read-only, base image pinned
   to a SHA-256 digest.
@@ -671,13 +703,13 @@ Honest, hyperlink-checkable. Every claim should be verifiable from the
 linked tool's public docs. **Submit a PR if any cell is wrong** — we'd
 rather correct than mislead.
 
-| Tool                                                         | Multi-ecosystem | Offline cache | Publisher signature check | MAL-* surfacing | Open campaign feed       | License                          |
-|--------------------------------------------------------------|-----------------|---------------|---------------------------|-----------------|--------------------------|----------------------------------|
-| [`npm audit`](https://docs.npmjs.com/cli/v10/commands/npm-audit) | npm only        | no            | yes (`--audit-signatures`, npm 9+) | partial         | no                       | open (Artistic-2.0)              |
-| [`pip-audit`](https://github.com/pypa/pip-audit)             | PyPI only       | partial       | no                        | partial         | no                       | Apache-2.0                       |
-| [`osv-scanner`](https://github.com/google/osv-scanner)       | yes (the bar)   | yes           | no                        | partial         | no                       | Apache-2.0                       |
-| [`socket`](https://github.com/SocketDev/socket-cli)          | yes             | n/a (cloud)   | yes                       | yes             | yes (free + paid tiers)  | MIT (CLI), proprietary (cloud)   |
-| **pwned-deps**                                               | yes             | yes           | no (planned V1.x)         | first-class¹    | yes (Sigstore-signed)    | Apache-2.0                       |
+| Tool                                                         | Multi-ecosystem | Offline cache | Publisher signature check | MAL-* surfacing | Open campaign feed       | Min-age policy | License                          |
+|--------------------------------------------------------------|-----------------|---------------|---------------------------|-----------------|--------------------------|----------------|----------------------------------|
+| [`npm audit`](https://docs.npmjs.com/cli/v10/commands/npm-audit) | npm only        | no            | yes (`--audit-signatures`, npm 9+) | partial         | no                       | no             | open (Artistic-2.0)              |
+| [`pip-audit`](https://github.com/pypa/pip-audit)             | PyPI only       | partial       | no                        | partial         | no                       | no             | Apache-2.0                       |
+| [`osv-scanner`](https://github.com/google/osv-scanner)       | yes (the bar)   | yes           | no                        | partial         | no                       | no             | Apache-2.0                       |
+| [`socket`](https://github.com/SocketDev/socket-cli)          | yes             | n/a (cloud)   | yes                       | yes             | yes (free + paid tiers)  | yes (cloud)    | MIT (CLI), proprietary (cloud)   |
+| **pwned-deps**                                               | yes             | yes           | no (planned V1.x)         | first-class¹    | yes (Sigstore-signed)    | yes (`--min-age`, npm + PyPI) | Apache-2.0                       |
 
 ¹ MAL-\* and our `EXTRA-*` campaign IDs are always surfaced regardless
 of CVSS. Ships with **15 historic + recent campaigns** built in

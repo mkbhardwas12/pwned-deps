@@ -46,9 +46,12 @@ In scope:
 
 - The published PyPI package `pwned-deps`.
 - The repository at <https://github.com/mkbhardwas12/pwned-deps>,
-  including `release.yml` / `ci.yml` and the dev container.
+  including `release.yml` / `ci.yml`, `action.yml` and the dev
+  container.
 - The bundled `extras.json` campaign feed (false positives,
-  fabricated entries, signature bypass).
+  fabricated entries, signature bypass) and the publish-timestamp
+  resolution logic that promotes SUSPECT hits to CONFIRMED (a way to
+  make it clear a genuinely compromised version would be in scope).
 
 Out of scope (please don't report):
 

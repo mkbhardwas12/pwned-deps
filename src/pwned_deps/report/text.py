@@ -106,15 +106,20 @@ def render_text(
     checked = total_packages - unpinned - len(unchecked)
     all_findings = [f for r in reports for f in r.findings]
     malicious = [f for f in all_findings if f.is_malicious]
+    policy = [f for f in all_findings if not f.is_malicious and f.is_policy]
     high_critical = [
         f
         for f in all_findings
-        if not f.is_malicious and f.severity in (Severity.HIGH, Severity.CRITICAL)
+        if not f.is_malicious
+        and not f.is_policy
+        and f.severity in (Severity.HIGH, Severity.CRITICAL)
     ]
     other = [
         f
         for f in all_findings
-        if not f.is_malicious and f.severity in (Severity.MEDIUM, Severity.LOW, Severity.UNKNOWN)
+        if not f.is_malicious
+        and not f.is_policy
+        and f.severity in (Severity.MEDIUM, Severity.LOW, Severity.UNKNOWN)
     ]
 
     for report in reports:
@@ -135,6 +140,13 @@ def render_text(
         marker = "[bold yellow]HIGH/CRITICAL[/]" if not ci else "HIGH/CRITICAL"
         console.print(f"{marker} — {len(high_critical)} package(s)")
         for finding in high_critical:
+            _print_finding(console, finding, malicious=False, ci=ci)
+
+    if policy:
+        console.print()
+        marker = "[bold yellow]TOO NEW[/]" if not ci else "TOO NEW"
+        console.print(f"{marker} — {len(policy)} package(s) violate the --min-age policy")
+        for finding in policy:
             _print_finding(console, finding, malicious=False, ci=ci)
 
     if other and verbose:
@@ -178,6 +190,8 @@ def render_text(
             f"{len(high_critical)} high/critical · "
             f"{len(other)} low/medium"
         )
+        if policy:
+            summary += f" · {len(policy)} too new"
         if unchecked:
             summary += f" · {len(unchecked)} unchecked"
         console.print(summary)

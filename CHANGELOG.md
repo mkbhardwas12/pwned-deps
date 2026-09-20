@@ -5,6 +5,50 @@ All notable changes to this project are documented here. Format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each commit
 uses [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.2.0] - 2026-09-19
+
+Strategy release: the campaign feed pivots from "enumerate every bad
+version" to "name the compromised maintainer and the time window",
+resolved against registry publish timestamps — and the same
+timestamps power a cooling-off policy.
+
+### Added
+
+- `pwned_deps.advisory.registry.RegistryClient` — fetches the publish
+  timestamp of an exact `(ecosystem, name, version)` from
+  `registry.npmjs.org` (`time[]`) and `pypi.org` (earliest
+  `upload_time_iso_8601`). Same transport guarantees as the OSV
+  client (`trust_env=False`, bounded timeout, GET only, one npm
+  document per package per run). Timestamps are immutable and are
+  cached in a new `publish_times` table with no TTL. Failures are
+  returned as reasons, never swallowed.
+- **SUSPECT → CONFIRMED resolution.** A `compromised_maintainers`
+  hit whose maintainer entry declares `compromised_after` (and
+  optionally `compromised_until`) is now resolved against the
+  installed version's publish time: inside the window → CONFIRMED
+  `EXTRA-*` (CRITICAL, exit 1, summary says "CONFIRMED by publish
+  timestamp"); outside → cleared; timestamp unavailable (offline,
+  404, yanked) → stays SUSPECT (exit 2). Behaviour without a
+  registry client is unchanged.
+- `pwned-deps check --min-age DAYS` (and the action's `min-age:`
+  input). Every pinned npm/PyPI version published fewer than `DAYS`
+  days ago is reported under a new **TOO NEW** heading with rule id
+  `MIN-AGE` (HIGH, non-malicious → exit 2). A version whose publish
+  time cannot be fetched is reported as UNCHECKED (exit 4) rather
+  than assumed old; ecosystems without a timestamp source are
+  skipped. Registries are contacted only when `--min-age` is set or
+  a SUSPECT needs resolving — never otherwise.
+- `Finding.is_policy` distinguishes `MIN-AGE` findings from advisory
+  findings in renderers.
+
+### Changed
+
+- Exit `2` now also covers `--min-age` policy violations.
+- README: network footprint, threat-model allow-list, comparison
+  table and the "first 30 minutes" scenario updated for the feed
+  pivot; SECURITY.md scope lists the registry client.
+- Version 0.2.0 (pyproject, `__version__`, action.yml default).
+
 ## [0.1.1] - 2026-09-19
 
 Correctness + trust release. No new features; every change closes a

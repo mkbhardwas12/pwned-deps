@@ -53,13 +53,13 @@ jobs:
           python-version: "3.12"
 
       - name: Install pwned-deps
-        run: pip install --quiet "pwned-deps==0.1.1"
+        run: pip install --quiet "pwned-deps==0.2.0"
 
       - name: Fetch comment renderer
         run: |
           # Pinned to the same release as the CLI above.
           curl -fsSL \
-            https://raw.githubusercontent.com/mkbhardwas12/pwned-deps/v0.1.1/tools/pr_comment.py \
+            https://raw.githubusercontent.com/mkbhardwas12/pwned-deps/v0.2.0/tools/pr_comment.py \
             -o pr_comment.py
 
       - name: Scan + render comment

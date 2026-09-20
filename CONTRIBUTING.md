@@ -83,6 +83,22 @@ This is the highest-leverage contribution.
      `sha256` must be present. Used for confirming the
      second-stage payload landed as IDE persistence after the
      lockfile was already remediated.
+   - `compromised_maintainers` *(optional, preferred in the first
+     hours of an incident)* — list of
+     `{name, registry_url?, compromised_after, compromised_until?,
+     packages: [names...]}`. **This is the entry to write when you
+     know *who* was hijacked and *when*, but not yet which
+     versions are bad.** `compromised_after` is required for
+     resolution; both timestamps are ISO-8601 UTC (`Z`). Since
+     0.2.0 the matcher looks up when the user's pinned version was
+     published (npm/PyPI) and reports CONFIRMED if it falls inside
+     the window, clears it if outside, and leaves it SUSPECT if the
+     timestamp is unavailable. Keep the window *conservative*
+     (start at the earliest credible compromise time, end at the
+     registry's cleanup time); a window that is too wide produces
+     false CONFIRMEDs, which is the one thing this feed must never
+     do. When exact versions become known, add them to `packages`
+     — they take precedence.
 2. Add a fixture lockfile that pins one of the affected versions
    under `tests/fixtures/<ecosystem>/`.
 3. Add or extend a test in `tests/` that scans the fixture and

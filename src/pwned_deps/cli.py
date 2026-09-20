@@ -12,7 +12,8 @@ Exit codes:
 
 * 0 — clean: every pinned package was checked, nothing found
 * 1 — at least one MAL-* / EXTRA-* (malicious) hit
-* 2 — needs attention: HIGH/CRITICAL CVE or SUSPECT hit (no malicious hits)
+* 2 — needs attention: HIGH/CRITICAL CVE, SUSPECT hit, or --min-age
+  policy violation (no malicious hits)
 * 3 — parse error in any scanned lockfile
 * 4 — incomplete: some pinned packages could not be looked up
   (offline cache miss, OSV unreachable). Never reported as clean.
@@ -29,6 +30,7 @@ from pwned_deps.advisory.cache import Cache, default_cache_path
 from pwned_deps.advisory.extras import ExtrasFeed
 from pwned_deps.advisory.matcher import Matcher
 from pwned_deps.advisory.osv_client import OsvClient
+from pwned_deps.advisory.registry import RegistryClient
 from pwned_deps.audit.repo import (
     DEFAULT_MAX_FILE_BYTES,
     FileHit,
@@ -126,6 +128,18 @@ def main() -> None:
     default=None,
     help="Override the SQLite cache path. Defaults to ~/.cache/pwned-deps/osv.sqlite.",
 )
+@click.option(
+    "--min-age",
+    "min_age",
+    type=click.IntRange(min=0),
+    default=None,
+    metavar="DAYS",
+    help=(
+        "Flag npm/PyPI packages whose pinned version was published fewer than "
+        "DAYS days ago (exit 2). Cooling-off defence for the first hours of a "
+        "campaign. Contacts registry.npmjs.org / pypi.org."
+    ),
+)
 @click.pass_context
 def check(
     ctx: click.Context,
@@ -137,6 +151,7 @@ def check(
     cache_ttl: int,
     feed_file: Path | None,
     cache_path: Path | None,
+    min_age: int | None,
 ) -> None:
     """Scan one or more PATHs (lockfiles or directories) for compromised packages."""
 
@@ -184,8 +199,13 @@ def check(
     extras = _load_extras(feed_file)
     cache = _open_cache(cache_path, cache_ttl)
     try:
-        with OsvClient(cache=cache, offline=offline) as osv:
-            matcher = Matcher(osv_client=osv, extras=extras)
+        with (
+            OsvClient(cache=cache, offline=offline) as osv,
+            RegistryClient(cache=cache, offline=offline) as registry,
+        ):
+            matcher = Matcher(
+                osv_client=osv, extras=extras, registry=registry, min_age_days=min_age
+            )
             for report in reports:
                 if report.parse_error:
                     continue
@@ -494,8 +514,11 @@ def watch(
     cache = _open_cache(cache_path, cache_ttl)
     reports: list[ScanReport] = [ScanReport(lockfile=lf, findings=[]) for lf in lockfiles]
     try:
-        with OsvClient(cache=cache, offline=offline) as osv:
-            matcher = Matcher(osv_client=osv, extras=extras)
+        with (
+            OsvClient(cache=cache, offline=offline) as osv,
+            RegistryClient(cache=cache, offline=offline) as registry,
+        ):
+            matcher = Matcher(osv_client=osv, extras=extras, registry=registry)
             for report in reports:
                 result = matcher.match_detailed(report.lockfile)
                 report.findings = result.findings

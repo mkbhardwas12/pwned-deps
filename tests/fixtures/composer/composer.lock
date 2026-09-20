@@ -1,0 +1,14 @@
+{
+  "packages": [
+    {
+      "name": "example/library",
+      "version": "v1.2.3"
+    }
+  ],
+  "packages-dev": [
+    {
+      "name": "example/dev-tool",
+      "version": "2.0.0"
+    }
+  ]
+}

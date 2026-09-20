@@ -5,6 +5,118 @@ All notable changes to this project are documented here. Format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each commit
 uses [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.1.1] - 2026-09-19
+
+Correctness + trust release. No new features; every change closes a
+way the tool could say "clean" when it had not actually checked.
+
+### Changed — exit codes
+
+- **New exit code `4` — INCOMPLETE.** A pinned package whose advisory
+  lookup did not happen (`--offline` cache miss, OSV unreachable,
+  advisory record fetch failed) is now reported under an
+  `UNCHECKED` heading and the summary line reads
+  `INCOMPLETE — N of M pinned packages checked`. Previously these
+  were silently treated as "no findings" and the run printed
+  `All N packages clean.` with exit 0. Findings still win: a
+  compromised hit is exit 1 even when other packages went unchecked.
+  `watch` follows the same rule (`watch: INCOMPLETE`, exit 4).
+- Exit `2` is now defined as "needs attention" (HIGH/CRITICAL CVE or
+  SUSPECT maintainer hit) rather than strictly "HIGH/CRITICAL CVE".
+- The "clean" line counts **pinned** packages only and a separate
+  `note:` reports unpinned entries (`requests>=2`) that cannot be
+  checked. `All 0 pinned packages clean.` is now possible — and
+  honest — for a requirements file with no exact pins.
+- JSON `schema_version` bumped to `1.1`: `summary` gains `checked`,
+  `unchecked`, `unpinned`; each lockfile gains `unchecked[]` with a
+  `reason`. Additive.
+- SARIF gains `runs[].invocations[]` with `exitCode` and a
+  warning-level `toolExecutionNotifications` entry naming every
+  unchecked package.
+
+### Fixed — false negatives
+
+- **npm aliases** (`npm i safe@npm:evil@1.0.0`): v2/v3 lockfiles now
+  use the entry's `name` (the real registry package) instead of the
+  alias derived from the key; v1 lockfiles unwrap
+  `"version": "npm:evil@1.0.0"`.
+- **yarn**: aliases (`alias@npm:real@^1`) resolve to the real name in
+  both v1 and Berry; Berry protocol wrappers (`patch:`, `portal:`,
+  `link:`) are unwrapped; `0.0.0-use.local` workspace placeholders
+  are no longer counted as checked packages.
+- **Gemfile.lock**: platform suffixes (`1.15.0-x86_64-linux`,
+  `-arm64-darwin`, `-java`, `-x64-mingw-ucrt`) are stripped so
+  exact-version campaign rules match.
+- **go.sum**: a degenerate `module /go.mod hash` line no longer
+  yields an empty-version package.
+- **requirements.txt**: `pkg==1.2.3 --hash=sha256:…` on one line no
+  longer corrupts the version; environment markers containing `==`
+  (`pkg>=2; python_version == "3.8"`) are no longer mistaken for a
+  pin; `==1.2.*` is treated as unpinned; `===` and
+  `==1.5.0,<2` are recognised as pins.
+- **OSV severity**: `severity[].score` is almost always a CVSS
+  *vector string*, which we mapped to UNKNOWN — so a 9.8 CVE never
+  produced exit 2. CVSS v3.x base scores are now computed per spec;
+  v4.0 vectors are bucketed conservatively; `ecosystem_specific`
+  severity is consulted as a last resort.
+- **GHSA malware records**: advisories that alias a `MAL-*` id, carry
+  `database_specific.malware`, or are titled "Malicious code in …"
+  are treated as malicious (exit 1, CRITICAL) even when OSV returns
+  only the GHSA id.
+- A failed `GET /v1/vulns/{id}` used to drop the advisory *and* cache
+  the package as clean for 24 h. It is now reported as unchecked and
+  never cached.
+- A network error during `POST /v1/querybatch` used to crash the CLI
+  with a traceback (Python exit 1 — indistinguishable from
+  "compromised" in CI). It now marks the chunk unchecked (exit 4).
+- `version_match`: `v1.2.3` vs `1.2.3`, `1.0` vs `1.0.0`, and
+  `+build` metadata now compare equal for non-PyPI ecosystems.
+
+### Changed — trust / supply chain
+
+- Every third-party GitHub Action is pinned to a full commit SHA
+  (with the version in a trailing comment for Dependabot). The SLSA
+  reusable workflow stays on its tag, as slsa-verifier requires.
+- `release.yml`: the SLSA provenance job is now a **hard gate**
+  (upgraded to `slsa-github-generator@v2.1.0`, `continue-on-error`
+  removed); a new `verify-provenance` job runs `slsa-verifier`
+  against every built artifact *before* PyPI publish; the tag must
+  match `pyproject.toml`, `__version__` **and** the action.yml
+  default version; the dogfood gate blocks on exit 3/4 as well as 1;
+  top-level permissions reduced to `contents: read`.
+- `release.yml` now **re-signs `extras.json` at release time** and
+  ships `extras-vX.Y.Z.json`, its `.sha256`, and the sigstore bundle
+  as GitHub Release assets — a durable, offline-verifiable copy of
+  the feed signature (the push-time `sign-feed.yml` artifact expires
+  after 90 days).
+- `action.yml` hardened: inputs are passed via `env:` instead of
+  being interpolated into `run:` bodies (script-injection); `version`
+  now defaults to the exact release matching the action tag instead
+  of "latest from PyPI" (`version: latest` opts back in); the
+  `version` input is validated; new `fail-on: incomplete` fails on
+  exit 1/3/4; `any` fails on every non-zero exit; every non-zero exit
+  is surfaced as a `::warning::`/`::error::` annotation.
+- `ci.yml` / `action-selftest.yml`: concurrency groups, dogfood
+  fails on incomplete scans, self-test covers offline-empty-cache →
+  exit 4 and `fail-on: incomplete`.
+- `.github/dependabot.yml` added (weekly, grouped, for GitHub
+  Actions and `requirements.lock`).
+
+### Fixed — documentation claims
+
+- README/FAQ said "no network availability is silently treated as
+  'all clean'" — that was aspirational until this release.
+- README said loose pins were "surfaced as a warning rather than
+  skipped silently" — no warning was printed. Now it is.
+- README module map described `version_match.py` as implementing
+  OSV `introduced/fixed/last_affected` range semantics — it is the
+  minimal range matcher for `extras.json` specs; OSV does its own
+  matching server-side.
+- `pwned-deps update` was described as "refresh the local cache"; it
+  only initialises the cache file (the cache refreshes lazily).
+- SECURITY.md verification recipe now points at the Release assets
+  and the `release.yml` signing identity.
+
 ## [0.1.0] - 2026-05-05
 
 First public release on PyPI.

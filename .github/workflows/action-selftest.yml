@@ -32,10 +32,12 @@ permissions:
 
 jobs:
   clean-fixture-passes:
-    name: clean lockfile -> exit 0
+    name: clean lockfile (online) -> exit 0
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Run action against a clean fixture
         id: scan
         uses: ./
@@ -43,21 +45,59 @@ jobs:
           path: tests/fixtures/npm/clean.lock.json
           version: from-source
           fail-on: compromised
-          offline: "true"
           upload-sarif: "false"
       - name: Assert exit code 0
+        env:
+          RC: ${{ steps.scan.outputs.exit-code }}
         run: |
-          rc="${{ steps.scan.outputs.exit-code }}"
-          if [ "$rc" != "0" ]; then
-            echo "expected 0, got $rc"
+          if [ "$RC" != "0" ]; then
+            echo "expected 0, got $RC"
             exit 1
           fi
+
+  offline-empty-cache-is-incomplete:
+    name: offline + empty cache -> exit 4, never 'clean'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: fail-on=compromised must NOT fail on exit 4 (but reports it)
+        id: lenient
+        uses: ./
+        with:
+          path: tests/fixtures/npm/clean.lock.json
+          version: from-source
+          fail-on: compromised
+          offline: "true"
+          upload-sarif: "false"
+      - name: fail-on=incomplete MUST fail on exit 4
+        id: strict
+        continue-on-error: true
+        uses: ./
+        with:
+          path: tests/fixtures/npm/clean.lock.json
+          version: from-source
+          fail-on: incomplete
+          offline: "true"
+          upload-sarif: "false"
+      - name: Assert
+        env:
+          LENIENT_RC: ${{ steps.lenient.outputs.exit-code }}
+          STRICT_RC: ${{ steps.strict.outputs.exit-code }}
+          STRICT_OUTCOME: ${{ steps.strict.outcome }}
+        run: |
+          [ "$LENIENT_RC" = "4" ] || { echo "expected lenient exit-code 4, got $LENIENT_RC"; exit 1; }
+          [ "$STRICT_RC" = "4" ] || { echo "expected strict exit-code 4, got $STRICT_RC"; exit 1; }
+          [ "$STRICT_OUTCOME" = "failure" ] || { echo "expected fail-on=incomplete to fail the step"; exit 1; }
 
   malicious-fixture-fails:
     name: Mini Shai-Hulud fixture -> exit 1, action fails
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Run action against the malicious fixture (must FAIL)
         id: scan
         continue-on-error: true
@@ -69,13 +109,16 @@ jobs:
           offline: "true"
           upload-sarif: "false"
       - name: Assert action step failed AND exit-code output is 1
+        env:
+          OUTCOME: ${{ steps.scan.outcome }}
+          RC: ${{ steps.scan.outputs.exit-code }}
         run: |
-          if [ "${{ steps.scan.outcome }}" != "failure" ]; then
-            echo "expected the scan step to FAIL on the malicious fixture, got outcome=${{ steps.scan.outcome }}"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "expected the scan step to FAIL on the malicious fixture, got outcome=$OUTCOME"
             exit 1
           fi
-          if [ "${{ steps.scan.outputs.exit-code }}" != "1" ]; then
-            echo "expected exit-code output=1, got ${{ steps.scan.outputs.exit-code }}"
+          if [ "$RC" != "1" ]; then
+            echo "expected exit-code output=1, got $RC"
             exit 1
           fi
 
@@ -83,7 +126,9 @@ jobs:
     name: fail-on=never -> never fails the step
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Run action against malicious fixture with fail-on=never
         id: scan
         uses: ./
@@ -94,8 +139,10 @@ jobs:
           offline: "true"
           upload-sarif: "false"
       - name: Assert step succeeded but exit-code output is still 1
+        env:
+          RC: ${{ steps.scan.outputs.exit-code }}
         run: |
-          if [ "${{ steps.scan.outputs.exit-code }}" != "1" ]; then
-            echo "expected exit-code output=1, got ${{ steps.scan.outputs.exit-code }}"
+          if [ "$RC" != "1" ]; then
+            echo "expected exit-code output=1, got $RC"
             exit 1
           fi

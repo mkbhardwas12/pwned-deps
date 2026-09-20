@@ -68,15 +68,28 @@ Out of scope (please don't report):
   secrets.
 - **Hardware-key 2FA** on the maintainer's GitHub and PyPI accounts.
 - **SLSA Level 3 build provenance** on every released artifact via
-  the `slsa-github-generator` workflow. Verify with:
+  the `slsa-github-generator` workflow. Provenance generation is a
+  hard gate (the release fails if it cannot be produced) and the
+  release workflow runs `slsa-verifier` against every artifact
+  *before* the PyPI upload. Verify yourself with:
 
   ```bash
   pip download --no-deps pwned-deps
   slsa-verifier verify-artifact pwned_deps-*.whl \
-      --provenance-path *.intoto.jsonl \
-      --source-uri github.com/mkbhardwas12/pwned-deps
+      --provenance-path pwned-deps-vX.Y.Z.intoto.jsonl \
+      --source-uri github.com/mkbhardwas12/pwned-deps \
+      --source-tag vX.Y.Z
   ```
 
+- **SHA-pinned GitHub Actions.** Every third-party action in
+  `.github/workflows/` and `action.yml` is pinned to a full commit
+  SHA (Dependabot keeps them current). The one exception is the SLSA
+  reusable workflow, which must be referenced by tag for
+  `slsa-verifier` to accept the builder ID.
+- **Composite action hardening.** `action.yml` passes every input to
+  the shell through `env:`, never by interpolating `${{ inputs.* }}`
+  into a script, and installs the exact `pwned-deps` release that
+  matches the action tag rather than an unpinned "latest".
 - **No `eval` / `exec` / `subprocess` / `pickle.load` of input
   content.** Enforced by `make verify-safety` (negative self-test
   proves the regex catches a planted `eval()`).
@@ -87,41 +100,55 @@ Out of scope (please don't report):
   with `pip-compile --generate-hashes`).
 - **Dogfood gate on release.** `release.yml` runs `pwned-deps check
   ./pyproject.toml ./requirements.lock` against the *built wheel*
-  before publishing. Exit 1 blocks the release.
-- **Signed campaign feed (Sigstore + Rekor).** Every push to `main`
-  that changes `src/pwned_deps/extras_data/extras.json` triggers
-  [`.github/workflows/sign-feed.yml`](.github/workflows/sign-feed.yml),
-  which keyless-signs the file with sigstore-python. The signature
-  event is logged to the public Rekor transparency log; nobody can
-  silently rewrite the project's campaign history without leaving an
-  auditable trail.
+  before publishing. Exit 1 (malicious) blocks the release; so do
+  exit 3 (parse error) and exit 4 (incomplete scan) — an unchecked
+  dependency is not a clean dependency.
+- **Signed campaign feed (Sigstore + Rekor).** Two signing events:
+  1. Every push to `main` that changes
+     `src/pwned_deps/extras_data/extras.json` triggers
+     [`.github/workflows/sign-feed.yml`](.github/workflows/sign-feed.yml)
+     (interim bundle kept as a 90-day workflow artifact).
+  2. Every tagged release re-signs the exact feed that ships in the
+     wheel and attaches `extras-vX.Y.Z.json`, `.sha256` and the
+     sigstore bundle to the GitHub Release — the durable copy.
+
+  Both are keyless (GitHub Actions OIDC identity) and logged to the
+  public Rekor transparency log; nobody can silently rewrite the
+  project's campaign history without leaving an auditable trail.
 
 ## Verifying the campaign feed
 
 The bundled feed (`src/pwned_deps/extras_data/extras.json`, also
 shipped inside the wheel at `pwned_deps/extras_data/extras.json`) is
-signed on every change. Verify with `sigstore-python`:
+signed at every release. Verify with `sigstore-python`:
 
 ```bash
 pip install "sigstore>=3.6,<4"
 
-# 1. Download the .sigstore bundle from the matching `sign-feed.yml`
-#    workflow run on GitHub (Actions → "Sign feed" → the run for the
-#    commit you trust → Artifacts → extras-json-sigstore-bundle).
+# 1. From the GitHub Release for the version you installed, download
+#    extras-vX.Y.Z.json.sigstore.json (the bundle). Compare the feed
+#    you actually have against the one that was signed:
+python -c 'import pwned_deps.extras_data, pathlib, hashlib; p = pathlib.Path(pwned_deps.extras_data.__file__).with_name("extras.json"); print(hashlib.sha256(p.read_bytes()).hexdigest())'
+#    ...must equal the digest in extras-vX.Y.Z.json.sha256.
 
-# 2. Verify the file you have matches the bundle, signed by this
-#    repository's GitHub Actions OIDC identity.
+# 2. Verify the bundle was produced by THIS repository's release
+#    workflow, at THAT tag, via GitHub's OIDC issuer:
 python -m sigstore verify identity \
-    --bundle extras.json.sigstore \
-    --cert-identity 'https://github.com/mkbhardwas12/pwned-deps/.github/workflows/sign-feed.yml@refs/heads/main' \
+    --bundle extras-vX.Y.Z.json.sigstore.json \
+    --cert-identity 'https://github.com/mkbhardwas12/pwned-deps/.github/workflows/release.yml@refs/tags/vX.Y.Z' \
     --cert-oidc-issuer 'https://token.actions.githubusercontent.com' \
-    src/pwned_deps/extras_data/extras.json
+    <path-to-your-installed-extras.json>
 ```
 
-A passing run proves the file content was signed by the
-`sign-feed.yml` workflow on `main` of this repo. To audit the full
-history of feed changes (including any silently-removed campaigns),
-query the Rekor transparency log directly:
+For an unreleased commit on `main`, the interim bundle from the
+matching `sign-feed.yml` run (Actions → "Sign feed" → Artifacts →
+`extras-json-sigstore-bundle`) verifies the same way with
+`--cert-identity '…/.github/workflows/sign-feed.yml@refs/heads/main'`.
+
+A passing run proves the file content was signed by this repo's
+GitHub Actions identity. To audit the full history of feed changes
+(including any silently-removed campaigns), query the Rekor
+transparency log directly:
 
 ```bash
 # Install rekor-cli once: https://docs.sigstore.dev/system_config/installation/

@@ -71,9 +71,9 @@ published malicious versions.
 | **Data sources**      | [OSV.dev](https://osv.dev) public API + curated `extras.json` campaign feed (signed, sigstore + Rekor) |
 | **Outputs**           | Coloured terminal report, JSON, SARIF (GitHub Code Scanning) |
 | **Four commands**     | `pwned-deps check <lockfile>` (one-shot scan) · `pwned-deps audit-repo <dir>` (forensic file-IoC scan) · `pwned-deps watch <lockfile> --baseline <file>` (daily baseline + delta alert) · `pwned-deps report <scans> -o <html>` (org-wide HTML dashboard) |
-| **Failure mode**      | Exit `1` on confirmed compromise — wire that to your CI gate |
-| **Network footprint** | One host: `api.osv.dev`. No telemetry. Offline mode supported. |
-| **Trust model**       | Apache-2.0, SLSA L3 build provenance, OIDC-only PyPI publishing, locked container CI |
+| **Failure mode**      | Exit `1` on confirmed compromise — wire that to your CI gate. Exit `4` when a scan is *incomplete* (a pinned package could not be looked up) — never reported as clean |
+| **Network footprint** | One host: `api.osv.dev`. No telemetry. Offline mode supported (uncached packages are reported as UNCHECKED, not clean). |
+| **Trust model**       | Apache-2.0, SLSA L3 build provenance (hard release gate, verified with `slsa-verifier` before publish), OIDC-only PyPI publishing, SHA-pinned Actions, locked container CI |
 
 ## Architecture
 
@@ -109,7 +109,7 @@ flowchart LR
     A <-- file_iocs --> EX
     M --> R
     A --> R
-    R --> OUT["Terminal · JSON · SARIF<br/>exit 0/1/2/3"]
+    R --> OUT["Terminal · JSON · SARIF<br/>exit 0/1/2/3/4"]
 ```
 
 **How a scan works (happy path):**
@@ -140,15 +140,15 @@ sequenceDiagram
 
 | Path                                | Responsibility                                       |
 |-------------------------------------|------------------------------------------------------|
-| `src/pwned_deps/cli.py`             | Click command surface; `check` and `audit-repo`      |
+| `src/pwned_deps/cli.py`             | Click command surface; `check`, `watch`, `audit-repo`, `report` |
 | `src/pwned_deps/parsers/*.py`       | One parser per ecosystem; pure text → tuples         |
-| `src/pwned_deps/advisory/osv_client.py` | OSV.dev HTTP client (httpx, batched)            |
+| `src/pwned_deps/advisory/osv_client.py` | OSV.dev HTTP client (httpx, batched); tracks unchecked packages |
 | `src/pwned_deps/advisory/cache.py`  | SQLite cache, TTL, offline mode                      |
 | `src/pwned_deps/advisory/matcher.py`| Severity + ID dedup; OSV ⨯ extras.json merge         |
-| `src/pwned_deps/advisory/version_match.py` | OSV range semantics (introduced / fixed / last_affected) |
+| `src/pwned_deps/advisory/version_match.py` | Minimal range matcher for `extras.json` version specs (OSV matches server-side) |
 | `src/pwned_deps/advisory/extras.py` | Curated-feed loader; per-package ecosystem override  |
 | `src/pwned_deps/audit/repo.py`      | `audit-repo` — SHA-256 walk, file-IoC matching       |
-| `src/pwned_deps/extras_data/extras.json` | The campaign feed; sigstore-signed on `main`    |
+| `src/pwned_deps/extras_data/extras.json` | The campaign feed; sigstore-signed on `main` and at every release |
 | `src/pwned_deps/report/{text,json_out,sarif}.py` | Three renderers, identical schema input |
 
 ## Why this exists
@@ -270,10 +270,11 @@ pwned-deps check ./package-lock.json
 pwned-deps check .
 pwned-deps check ./pyproject.toml ./requirements.lock ./package-lock.json
 
-# Skip network — use cached database only
+# Skip network — use cached database only.
+# Packages not in the cache are reported as UNCHECKED (exit 4), never as clean.
 pwned-deps check . --offline
 
-# Refresh the local cache
+# Initialise the local cache directory (the cache itself refreshes lazily, 24h TTL)
 pwned-deps update
 
 # JSON for scripting
@@ -287,10 +288,16 @@ Exit codes:
 
 | Code | Meaning                                |
 |------|----------------------------------------|
-| `0`  | All clean                              |
+| `0`  | Clean — every pinned package was checked, nothing found |
 | `1`  | At least one MAL-* / EXTRA-* hit (compromised package) |
-| `2`  | At least one HIGH/CRITICAL CVE hit (no malicious hits) |
+| `2`  | Needs attention: HIGH/CRITICAL CVE or SUSPECT maintainer hit (no malicious hits) |
 | `3`  | Parse error                            |
+| `4`  | Incomplete — some pinned packages could **not** be looked up (offline cache miss, OSV unreachable). Not clean. |
+
+Findings win over incompleteness: a compromised hit is exit `1` even
+if other packages went unchecked. Unpinned entries (`requests>=2`)
+are counted separately and reported in a `note:` line — they do not
+change the exit code because the input, not the scan, is incomplete.
 
 ## Watch mode (the recurring-value workflow)
 
@@ -311,12 +318,15 @@ pwned-deps watch ./package-lock.json --baseline .pwned-deps-baseline.json
 # → "watch: baseline created at ... (47 packages)"  (exit 0)
 
 # Day 1..N — run nightly in CI; exit 1 only if something you ship is now compromised
-pwned-deps watch ./package-lock.json --baseline .pwned-deps-baseline.json --offline
+pwned-deps watch ./package-lock.json --baseline .pwned-deps-baseline.json
 # → "watch: OK — 47 baseline packages, no new findings"   (exit 0)
 # … or:
 # → "watch: ALERT — 1 package(s) in your baseline are now flagged:
 #     [MALICIOUS] npm:event-stream@3.3.6 (EXTRA-2018-0001) — event-stream / flatmap-stream credential stealer"
 #   (exit 1)
+# … or, if OSV was unreachable / --offline with a cold cache:
+# → "watch: INCOMPLETE — 47 baseline packages, no new findings, but 12 package(s) could not be looked up"
+#   (exit 4 — do not treat as OK)
 
 # Re-baseline after a deliberate dependency upgrade
 pwned-deps watch . --baseline .pwned-deps-baseline.json --update-baseline
@@ -339,10 +349,12 @@ and you have a same-day signal for every campaign that lands.
 | Maven     | `pom.xml` (`<dependencies>` + `<dependencyManagement>`)   |
 | RubyGems  | `Gemfile.lock`                                            |
 
-Loose pins in `requirements.txt` (`>=`, `~=`, `<`) and Maven property-
-variable versions (`${spring.version}`) are scanned but reported as
+Loose pins in `requirements.txt` (`>=`, `~=`, `<`, `==1.2.*`) and Maven
+property-variable versions (`${spring.version}`) are parsed but marked
 `version_unspecified` — we cannot match an advisory without an exact
-version, so they're surfaced as a warning rather than skipped silently.
+version. They are excluded from the "pinned packages clean" count and
+reported in a `note: N unpinned entries … not checked` line so zero
+coverage is never mistaken for a clean bill of health.
 
 ## Real-world scenarios this is built for
 
@@ -453,27 +465,33 @@ upgrade from SUSPECT to MALICIOUS automatically.
 
 **"How do we trust the campaign feed itself?"**
 Every change to `extras.json` on `main` is signed with sigstore
-keyless OIDC and logged to the public Rekor transparency log. See
-[SECURITY.md](SECURITY.md) §"Verifying the campaign feed" for the
-verification recipe. Force-pushes and silent removals can't escape
-the append-only log.
+keyless OIDC and logged to the public Rekor transparency log, and
+every tagged release re-signs the exact feed it ships and attaches
+`extras-vX.Y.Z.json` + `.sha256` + the sigstore bundle as Release
+assets. See [SECURITY.md](SECURITY.md) §"Verifying the campaign
+feed" for the verification recipe. Force-pushes and silent removals
+can't escape the append-only log.
 
 ## CI integration
 
 ### GitHub Actions (one line)
 
 ```yaml
-- uses: mkbhardwas12/pwned-deps@v0.1.0
+- uses: mkbhardwas12/pwned-deps@v0.1.1
   with:
     path: .
-    fail-on: compromised   # also: `any` (HIGH/CRITICAL too) or `never`
+    fail-on: compromised   # also: `incomplete` (1/3/4), `any` (all non-zero) or `never`
     upload-sarif: true     # writes to GitHub Code Scanning
 ```
 
-The action installs `pwned-deps` from PyPI, scans every recognised
-lockfile under `path`, and uploads SARIF to Code Scanning. Step fails
-the build on exit `1` (compromised package) by default. See
-[action.yml](action.yml) for all inputs.
+The action installs the `pwned-deps` release that matches the action
+tag (never an unpinned "latest"), scans every recognised lockfile
+under `path`, and uploads SARIF to Code Scanning. Step fails the
+build on exit `1` (compromised package) by default; exits `2`/`3`/`4`
+are surfaced as workflow annotations. Use `fail-on: incomplete` if
+"could not verify" must also block. Inputs are passed to the shell via
+environment variables (no script injection) and every action it uses
+is SHA-pinned. See [action.yml](action.yml) for all inputs.
 
 ### Plain workflow step (no action wrapper)
 
@@ -481,8 +499,9 @@ the build on exit `1` (compromised package) by default. See
 - run: pip install pwned-deps && pwned-deps check . --ci
 ```
 
-Exit `1` fails the build. Exit `2` is HIGH/CRITICAL CVEs (no
-malicious hits) — you decide whether that fails or warns.
+Exit `1` fails the build. Exit `2` is HIGH/CRITICAL CVEs or SUSPECT
+hits (no malicious hits) and exit `4` is an incomplete scan — you
+decide whether those fail or warn.
 
 ### Sticky PR comment (the bot workflow)
 
@@ -547,7 +566,7 @@ become clickable.
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/mkbhardwas12/pwned-deps
-    rev: v0.1.0
+    rev: v0.1.1
     hooks:
       - id: pwned-deps           # online (api.osv.dev)
       # or:
@@ -573,12 +592,14 @@ pwned-deps:
 
 * **`text`** (default) — colourful terminal output via `rich`,
   MAL-*/EXTRA-* findings prominently flagged.
-* **`json`** — machine-readable. Stable schema (top-level: `version`,
-  `summary`, `lockfiles[]`, each lockfile carries `findings[]` with
-  `id`, `severity`, `package`, `version`, `references`).
+* **`json`** — machine-readable. Stable schema (`schema_version`
+  `1.1`; top-level: `tool`, `summary` incl. `checked`/`unchecked`/
+  `unpinned`, `lockfiles[]`, each lockfile carries `findings[]` and
+  `unchecked[]`).
 * **`sarif`** — SARIF v2.1.0 for GitHub Code Scanning upload. Validates
   against the OASIS schema; `partialFingerprints.primaryLocationLineHash`
-  is set so the same finding dedups across runs.
+  is set so the same finding dedups across runs; unchecked packages
+  appear as `invocations[].toolExecutionNotifications`.
 
 ## Threat model
 
@@ -599,20 +620,22 @@ the safety contract:
 * **Container-only dev** with non-root `appuser` UID 1000, network
   denied during tests, source mounted read-only, base image pinned
   to a SHA-256 digest.
-* **Pinned deps.** Production runtime dependencies are pinned by
-  exact version in `requirements.lock`; `--require-hashes` enforcement
-  before the first PyPI release is a TODO recorded in
-  `requirements.lock`.
+* **Pinned deps.** Runtime dependencies are pinned by exact version
+  *and* SHA-256 hash in `requirements.lock` (`--generate-hashes`).
+  Every third-party GitHub Action is pinned to a full commit SHA and
+  kept current by Dependabot.
 * **OIDC publishing only.** The `release.yml` workflow publishes to
   PyPI through the Trusted Publishers OIDC flow — no long-lived
-  tokens in repository secrets.
+  tokens in repository secrets. Provenance generation is a hard
+  gate and is verified with `slsa-verifier` before anything is
+  uploaded.
 * **No service mode.** We never accept lockfiles via a hosted
   backend we control. The future drag-drop web UI (V1.1) will be
   fully client-side; lockfile contents never leave the browser.
 * **Eat your own dog food.** Every CI run executes
   `pwned-deps check ./pyproject.toml ./requirements.lock`. If a
-  malicious version of one of our own deps appears, the release is
-  blocked.
+  malicious version of one of our own deps appears — or the scan
+  cannot complete — the release is blocked.
 
 If `pwned-deps` itself were compromised, the irony would kill the
 project. We treat account hygiene as tier-1: hardware-key 2FA on
@@ -628,16 +651,19 @@ environment):
 
 ```bash
 pip download --no-deps pwned-deps
-# Grab the matching *.intoto.jsonl from the GitHub Release page,
-# then:
+# Grab the matching pwned-deps-vX.Y.Z.intoto.jsonl from the GitHub
+# Release page, then:
 slsa-verifier verify-artifact pwned_deps-*.whl \
-    --provenance-path pwned_deps-*.intoto.jsonl \
-    --source-uri github.com/mkbhardwas12/pwned-deps
+    --provenance-path pwned-deps-v*.intoto.jsonl \
+    --source-uri github.com/mkbhardwas12/pwned-deps \
+    --source-tag vX.Y.Z
 ```
 
 A passing `slsa-verifier` run cryptographically proves the wheel
 was built by [release.yml](.github/workflows/release.yml) on this
-repository, by the tagged commit, with no human-in-the-middle.
+repository, by the tagged commit, with no human-in-the-middle. The
+same check runs inside `release.yml` itself before the PyPI upload;
+if it fails, nothing is published.
 
 ## Comparison
 
@@ -683,9 +709,11 @@ a yes/no answer about your pipeline before the CVE is published.
 
 **Q. What happens if `api.osv.dev` is down?**
 The CLI uses `~/.cache/pwned-deps/osv.sqlite` (24 h TTL by default).
-Run `--offline` to skip the network entirely; whatever's cached is
-what you get. The exit code is identical — no network availability is
-silently treated as "all clean".
+Anything in the cache is still checked. Anything that is *not* in the
+cache — or that fails to fetch — is listed under `UNCHECKED`, the
+summary reads `INCOMPLETE`, and the exit code is `4`. No network
+availability is never reported as "all clean". Run `--offline` to
+skip the network deliberately; the same rules apply.
 
 **Q. How do I add a new campaign before OSV ingests it?**
 Send a PR adding an entry to `src/pwned_deps/extras_data/extras.json`.

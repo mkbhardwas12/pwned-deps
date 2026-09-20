@@ -44,20 +44,22 @@ jobs:
   scan-and-comment:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
       - name: Install pwned-deps
-        run: pip install --quiet pwned-deps
+        run: pip install --quiet "pwned-deps==0.1.1"
 
       - name: Fetch comment renderer
         run: |
-          # Pin to a tag (e.g. v0.1.1) once the helper has a release.
+          # Pinned to the same release as the CLI above.
           curl -fsSL \
-            https://raw.githubusercontent.com/mkbhardwas12/pwned-deps/main/tools/pr_comment.py \
+            https://raw.githubusercontent.com/mkbhardwas12/pwned-deps/v0.1.1/tools/pr_comment.py \
             -o pr_comment.py
 
       - name: Scan + render comment
@@ -80,6 +82,10 @@ jobs:
 
       - name: Fail step if compromised packages were found
         if: steps.scan.outputs.rc != '0'
+        env:
+          RC: ${{ steps.scan.outputs.rc }}
         run: |
-          echo "::error::pwned-deps reported exit ${{ steps.scan.outputs.rc }}"
-          exit ${{ steps.scan.outputs.rc }}
+          # 1 = compromised, 2 = needs attention, 3 = parse error,
+          # 4 = incomplete (some packages could not be checked).
+          echo "::error::pwned-deps reported exit $RC"
+          exit "$RC"

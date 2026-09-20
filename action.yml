@@ -1,18 +1,30 @@
 # pwned-deps GitHub Action
 #
-# Composite action — `uses: mkbhardwas12/pwned-deps@v0.1.0`.
+# Composite action — `uses: mkbhardwas12/pwned-deps@v0.1.1`.
 #
 # Scans every recognised lockfile under the given path, emits SARIF,
 # and (if `upload-sarif: true`) uploads it to GitHub Code Scanning.
 #
 # Exit codes from the underlying CLI:
-#   0  clean
+#   0  clean — every pinned package was checked, nothing found
 #   1  at least one MAL-* / EXTRA-* hit (compromised package)
-#   2  at least one HIGH/CRITICAL CVE (no malicious hits)
+#   2  needs attention: HIGH/CRITICAL CVE or SUSPECT maintainer
+#      (no malicious hits)
 #   3  parse error
+#   4  incomplete — some pinned packages could NOT be looked up
+#      (offline cache miss, OSV unreachable). NOT clean.
 #
 # `fail-on` controls which exit codes fail the step. Default: `compromised`
-# (exit 1 only). Set to `any` to also fail on HIGH/CRITICAL CVEs.
+# (exit 1 only). `incomplete` also fails on 3/4 ("could not verify" is
+# not "clean"). `any` fails on everything non-zero.
+#
+# Hardening notes:
+#   * Inputs are passed to scripts via `env:`, never interpolated into
+#     `run:` bodies, so a hostile `path` cannot inject shell.
+#   * `version` defaults to the exact release this action.yml shipped
+#     with (the release gate refuses to tag otherwise), so `@vX.Y.Z`
+#     never silently installs "latest" from PyPI.
+#   * Every third-party action is pinned to a full commit SHA.
 
 name: pwned-deps
 description: Scan lockfiles for compromised package versions (MAL-* / EXTRA-*).
@@ -29,20 +41,21 @@ inputs:
   version:
     description: |
       Which pwned-deps to install.
-      Empty (default)  - `pip install pwned-deps` (latest from PyPI).
+      Default          - the exact PyPI release matching this action tag.
       "1.2.3"          - `pip install pwned-deps==1.2.3` (pinned).
+      "latest"         - `pip install pwned-deps` (unpinned; not recommended).
       "from-source"    - install the action's own checkout via
                          pip install -e <action checkout path>.
-                         Used by this repo's action self-test before
-                         first PyPI publish, and by forks doing local
-                         development against an unreleased revision.
+                         Used by this repo's action self-test, and by
+                         forks developing against an unreleased revision.
     required: false
-    default: ""
+    default: "0.1.1"
   fail-on:
     description: |
       Which exit codes fail the step.
-      `compromised` (default) — fail on exit 1 only.
-      `any`                   — fail on exit 1 or 2.
+      `compromised` (default) — fail on exit 1 only (2/3/4 are annotated as warnings).
+      `incomplete`            — fail on exit 1, 3 or 4 (compromised OR could not verify).
+      `any`                   — fail on any non-zero exit.
       `never`                 — never fail (report-only).
     required: false
     default: compromised
@@ -55,13 +68,13 @@ inputs:
     required: false
     default: "true"
   offline:
-    description: If `true`, skip the network and use the cached database only.
+    description: If `true`, skip the network and use the cached database only. Uncached packages are reported as UNCHECKED (exit 4).
     required: false
     default: "false"
 
 outputs:
   exit-code:
-    description: The CLI exit code (0/1/2/3).
+    description: The CLI exit code (0/1/2/3/4).
     value: ${{ steps.scan.outputs.exit-code }}
   sarif-path:
     description: Path to the SARIF file written, if any.
@@ -71,25 +84,31 @@ runs:
   using: composite
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
       with:
         python-version: "3.12"
 
     - name: Install pwned-deps
       shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        ACTION_PATH: ${{ github.action_path }}
+        PIP_DISABLE_PIP_VERSION_CHECK: "1"
       run: |
-        case "${{ inputs.version }}" in
-          "")
+        set -euo pipefail
+        case "$INPUT_VERSION" in
+          latest)
             pip install --quiet pwned-deps
             ;;
-          "from-source")
-            # Install the action's own checkout. The action self-test
-            # workflow (.github/workflows/action-selftest.yml) uses this
-            # to validate action.yml end-to-end before tagging.
-            pip install --quiet -e "${{ github.action_path }}"
+          from-source)
+            pip install --quiet -e "$ACTION_PATH"
             ;;
           *)
-            pip install --quiet "pwned-deps==${{ inputs.version }}"
+            if ! printf '%s' "$INPUT_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9.+-]*)$'; then
+              echo "::error::Invalid version input: $INPUT_VERSION"
+              exit 1
+            fi
+            pip install --quiet "pwned-deps==$INPUT_VERSION"
             ;;
         esac
         pwned-deps version
@@ -97,10 +116,15 @@ runs:
     - name: Scan
       id: scan
       shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_OFFLINE: ${{ inputs.offline }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_OUTPUT_SARIF: ${{ inputs.output-sarif }}
       run: |
         set +e
-        args=(check "${{ inputs.path }}" --ci)
-        if [ "${{ inputs.offline }}" = "true" ]; then
+        args=(check "$INPUT_PATH" --ci)
+        if [ "$INPUT_OFFLINE" = "true" ]; then
           args+=(--offline)
         fi
 
@@ -108,15 +132,24 @@ runs:
         pwned-deps "${args[@]}"
         rc=$?
 
-        # Optional SARIF run for Code Scanning upload.
-        if [ -n "${{ inputs.output-sarif }}" ]; then
-          pwned-deps "${args[@]}" --format sarif > "${{ inputs.output-sarif }}" || true
-          echo "sarif-path=${{ inputs.output-sarif }}" >> "$GITHUB_OUTPUT"
+        # Optional SARIF run for Code Scanning upload (cache is warm now).
+        if [ -n "$INPUT_OUTPUT_SARIF" ]; then
+          pwned-deps "${args[@]}" --format sarif > "$INPUT_OUTPUT_SARIF" || true
+          echo "sarif-path=$INPUT_OUTPUT_SARIF" >> "$GITHUB_OUTPUT"
         fi
 
         echo "exit-code=$rc" >> "$GITHUB_OUTPUT"
 
-        case "${{ inputs.fail-on }}" in
+        case "$rc" in
+          0) ;;
+          1) echo "::error::pwned-deps: compromised package(s) found (exit 1)" ;;
+          2) echo "::warning::pwned-deps: findings need attention — HIGH/CRITICAL or SUSPECT (exit 2)" ;;
+          3) echo "::warning::pwned-deps: a lockfile could not be parsed — nothing in it was checked (exit 3)" ;;
+          4) echo "::warning::pwned-deps: scan INCOMPLETE — some pinned packages were not checked and are NOT clean (exit 4)" ;;
+          *) echo "::error::pwned-deps: unexpected exit code $rc" ;;
+        esac
+
+        case "$INPUT_FAIL_ON" in
           never)
             exit 0
             ;;
@@ -124,19 +157,23 @@ runs:
             if [ "$rc" -eq 1 ]; then exit 1; fi
             exit 0
             ;;
+          incomplete)
+            case "$rc" in 1|3|4) exit "$rc" ;; esac
+            exit 0
+            ;;
           any)
-            if [ "$rc" -eq 1 ] || [ "$rc" -eq 2 ]; then exit "$rc"; fi
+            if [ "$rc" -ne 0 ]; then exit "$rc"; fi
             exit 0
             ;;
           *)
-            echo "::error::Invalid fail-on value: ${{ inputs.fail-on }}"
+            echo "::error::Invalid fail-on value: $INPUT_FAIL_ON"
             exit 1
             ;;
         esac
 
     - name: Upload SARIF to Code Scanning
       if: ${{ inputs.upload-sarif == 'true' && inputs.output-sarif != '' && always() }}
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@3ea06614dafe36dec890db3446326e0d40ce53d4 # v3.38.1
       with:
         sarif_file: ${{ inputs.output-sarif }}
         category: pwned-deps

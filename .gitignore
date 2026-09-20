@@ -51,3 +51,7 @@ base-image.lock
 
 # SARIF outputs from local demo / smoke runs (CI uploads its own)
 pwned-deps.sarif
+
+# Launch / marketing drafts live out of band (see 67a9a30)
+launch_assets/
+LAUNCH_POST*.md

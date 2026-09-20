@@ -7,7 +7,9 @@
 /src/pwned_deps/extras_data/ @mkbhardwas12
 
 # Release infrastructure — gates, OIDC publishing, SLSA provenance.
-/.github/workflows/release.yml @mkbhardwas12
+/.github/workflows/            @mkbhardwas12
+/.github/dependabot.yml        @mkbhardwas12
+/.github/CODEOWNERS            @mkbhardwas12
 /action.yml                    @mkbhardwas12
 /Dockerfile.dev                @mkbhardwas12
 /requirements.lock             @mkbhardwas12

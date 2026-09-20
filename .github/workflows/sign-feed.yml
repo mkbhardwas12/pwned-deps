@@ -38,10 +38,12 @@ jobs:
     name: keyless sign extras.json
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
@@ -68,11 +70,10 @@ jobs:
           echo "    src/pwned_deps/extras_data/extras.json"
 
       - name: Upload bundle as workflow artifact
-        # The bundle (cert + signature + Rekor log proof) is the
-        # offline-verifiable artifact. Anyone can download this from
-        # the workflow run and re-verify against the source file at
-        # the matching commit.
-        uses: actions/upload-artifact@v4
+        # Interim copy for the push that changed the feed. The DURABLE
+        # copy of the bundle ships as a GitHub Release asset
+        # (release.yml `sign-feed` job) on every tagged release.
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: extras-json-sigstore-bundle
           path: /tmp/extras.json.sigstore

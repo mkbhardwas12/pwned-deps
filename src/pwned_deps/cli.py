@@ -38,6 +38,7 @@ from pwned_deps.audit.repo import (
     collect_file_iocs,
 )
 from pwned_deps.parsers import cargo as cargo_parser
+from pwned_deps.parsers import composer as composer_parser
 from pwned_deps.parsers import gem as gem_parser
 from pwned_deps.parsers import go as go_parser
 from pwned_deps.parsers import maven as maven_parser
@@ -65,6 +66,7 @@ _DETECTORS: list[tuple[str, object]] = [
     ("poetry.lock", pypi_parser.parse),
     ("uv.lock", pypi_parser.parse),
     ("Cargo.lock", cargo_parser.parse),
+    ("composer.lock", composer_parser.parse),
     ("go.sum", go_parser.parse),
     ("pom.xml", maven_parser.parse),
     ("Gemfile.lock", gem_parser.parse),

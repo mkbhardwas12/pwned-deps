@@ -28,6 +28,7 @@ _PURL_ECOSYSTEMS: dict[str, Ecosystem] = {
     "golang": Ecosystem.GO,
     "maven": Ecosystem.MAVEN,
     "gem": Ecosystem.RUBYGEMS,
+    "composer": Ecosystem.PACKAGIST,
 }
 
 
@@ -84,7 +85,7 @@ def parse(path: str | Path) -> Lockfile:
         # Components exist but none is checkable; silence would read as clean.
         raise ParseError(
             f"{path}: no component in this SBOM carries a purl in an ecosystem "
-            "we check (npm, PyPI, crates.io, Go, Maven, RubyGems)."
+            "we check (npm, PyPI, crates.io, Go, Maven, RubyGems, Packagist)."
         )
     ecosystem = Counter(p.ecosystem for p in out).most_common(1)[0][0] if out else Ecosystem.NPM
     return Lockfile(path=path, ecosystem=ecosystem, packages=tuple(out))

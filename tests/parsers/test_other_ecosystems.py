@@ -11,10 +11,12 @@ from pathlib import Path
 
 import pytest
 
+from pwned_deps.cli import _discover_targets
 from pwned_deps.parsers import (
     Ecosystem,
     ParseError,
     cargo,
+    composer,
     gem,
     go,
     maven,
@@ -23,6 +25,44 @@ from pwned_deps.parsers import (
 )
 
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
+
+
+# ---------------------------------------------------------------------------
+# Composer
+# ---------------------------------------------------------------------------
+
+
+def test_composer_extracts_production_and_dev_packages() -> None:
+    # The fixture is synthetic and contains no downloaded package artifacts.
+    path = FIXTURES / "composer" / "composer.lock"
+    lockfile = composer.parse(path)
+    pairs = {(package.name, package.version) for package in lockfile.packages}
+
+    assert ("example/library", "1.2.3") in pairs
+    assert ("example/dev-tool", "2.0.0") in pairs
+    assert lockfile.ecosystem is Ecosystem.PACKAGIST
+    assert all(package.lockfile_path == str(path) for package in lockfile.packages)
+
+
+def test_cli_discovers_composer_lockfile() -> None:
+    path = FIXTURES / "composer" / "composer.lock"
+
+    assert _discover_targets(path) == [(path, composer.parse)]
+
+
+def test_composer_corrupted_json_raises_parse_error(tmp_path: Path) -> None:
+    bad = tmp_path / "composer.lock"
+    bad.write_text('{"packages": [', encoding="utf-8")
+
+    with pytest.raises(ParseError) as excinfo:
+        composer.parse(bad)
+
+    assert "JSON" in str(excinfo.value)
+
+
+def test_composer_missing_file_raises_parse_error(tmp_path: Path) -> None:
+    with pytest.raises(ParseError):
+        composer.parse(tmp_path / "absent.lock")
 
 
 # ---------------------------------------------------------------------------

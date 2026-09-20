@@ -44,6 +44,21 @@ def test_spdx_reads_purl_external_refs() -> None:
     assert found == {("chalk", "5.6.1", Ecosystem.NPM), ("jinja2", "3.1.2", Ecosystem.PYPI)}
 
 
+def test_composer_purl_maps_to_packagist(tmp_path: Path) -> None:
+    path = tmp_path / "bom.json"
+    path.write_text(
+        json.dumps(
+            {
+                "bomFormat": "CycloneDX",
+                "components": [{"purl": "pkg:composer/monolog/monolog@v3.5.0"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (pkg,) = sbom.parse(path).packages
+    assert (pkg.name, pkg.version, pkg.ecosystem) == ("monolog/monolog", "v3.5.0", Ecosystem.PACKAGIST)
+
+
 def test_non_sbom_malformed_or_missing_json_raises_parse_error(tmp_path: Path) -> None:
     path = tmp_path / "bom.json"
     path.write_text('{"lockfileVersion": 3}', encoding="utf-8")

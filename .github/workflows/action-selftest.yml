@@ -35,7 +35,7 @@ jobs:
     name: clean lockfile (online) -> exit 0
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Run action against a clean fixture
@@ -59,7 +59,7 @@ jobs:
     name: offline + empty cache -> exit 4, never 'clean'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: fail-on=compromised must NOT fail on exit 4 (but reports it)
@@ -95,7 +95,7 @@ jobs:
     name: Mini Shai-Hulud fixture -> exit 1, action fails
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Run action against the malicious fixture (must FAIL)
@@ -126,7 +126,7 @@ jobs:
     name: fail-on=never -> never fails the step
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Run action against malicious fixture with fail-on=never

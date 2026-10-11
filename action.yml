@@ -188,7 +188,7 @@ runs:
 
     - name: Upload SARIF to Code Scanning
       if: ${{ inputs.upload-sarif == 'true' && inputs.output-sarif != '' && always() }}
-      uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+      uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
       with:
         sarif_file: ${{ inputs.output-sarif }}
         category: pwned-deps

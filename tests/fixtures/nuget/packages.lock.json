@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "Newtonsoft.Json": {
+        "type": "Direct",
+        "requested": "[13.0.1, )",
+        "resolved": "13.0.1",
+        "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
+      },
+      "Serilog": {
+        "type": "Direct",
+        "requested": "[4.0.0, )",
+        "resolved": "4.0.0",
+        "contentHash": "0eFdjfKxQFo8W0VMlQ2BkeRx0YnqSuY0YLv9eEaGu3Z4eo2wpSTGxCN5iE0DqbcBBaZqc1rmWJ2uCvhOcWRs6A=="
+      },
+      "System.Text.Json": {
+        "type": "Transitive",
+        "resolved": "8.0.4",
+        "contentHash": "bAkhgDJ88XTsqcCp5F5tsBv0gRMeR0rYZReQJTbMDLYZdSsBhlZJZDAjGkMuDtxRLKtYF4PNs3Qx0wCOUzHbSA=="
+      },
+      "MyApp.Contracts": {
+        "type": "Project"
+      }
+    },
+    "net6.0": {
+      "newtonsoft.json": {
+        "type": "Direct",
+        "requested": "[13.0.1, )",
+        "resolved": "13.0.1",
+        "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
+      },
+      "Serilog": {
+        "type": "Direct",
+        "requested": "[4.0.0, )",
+        "resolved": "4.0.0",
+        "contentHash": "0eFdjfKxQFo8W0VMlQ2BkeRx0YnqSuY0YLv9eEaGu3Z4eo2wpSTGxCN5iE0DqbcBBaZqc1rmWJ2uCvhOcWRs6A=="
+      },
+      "System.Text.Json": {
+        "type": "Transitive",
+        "resolved": "6.0.10",
+        "contentHash": "ebqJH1nRxFhJYqFPMiEMNQZhFzJKQsTwLSnRhHCtMNAtU1dXTDFLSjlGQmFacWMxcm1XSjJ1Q3Zob2NXUnM2QT=="
+      }
+    }
+  }
+}

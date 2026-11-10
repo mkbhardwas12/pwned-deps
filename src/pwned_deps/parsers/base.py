@@ -26,6 +26,7 @@ class Ecosystem(str, Enum):
     MAVEN = "Maven"
     RUBYGEMS = "RubyGems"
     PACKAGIST = "Packagist"
+    NUGET = "NuGet"
 
     def __str__(self) -> str:  # avoid ``Ecosystem.NPM`` in user output
         return self.value

@@ -20,6 +20,7 @@ from pwned_deps.parsers import (
     gem,
     go,
     maven,
+    nuget,
     pnpm,
     yarn,
 )
@@ -63,6 +64,65 @@ def test_composer_corrupted_json_raises_parse_error(tmp_path: Path) -> None:
 def test_composer_missing_file_raises_parse_error(tmp_path: Path) -> None:
     with pytest.raises(ParseError):
         composer.parse(tmp_path / "absent.lock")
+
+
+# ---------------------------------------------------------------------------
+# NuGet
+# ---------------------------------------------------------------------------
+
+
+def test_nuget_extracts_direct_and_transitive_packages() -> None:
+    # The fixture is synthetic and contains no downloaded package artifacts.
+    path = FIXTURES / "nuget" / "packages.lock.json"
+    lockfile = nuget.parse(path)
+    pairs = {(package.name, package.version) for package in lockfile.packages}
+
+    assert ("Newtonsoft.Json", "13.0.1") in pairs
+    assert ("System.Text.Json", "8.0.4") in pairs
+    assert lockfile.ecosystem is Ecosystem.NUGET
+    assert all(package.lockfile_path == str(path) for package in lockfile.packages)
+
+
+def test_nuget_dedupes_a_package_shared_by_target_frameworks() -> None:
+    # `net8.0` and `net6.0` both resolve Serilog 4.0.0, and spell
+    # Newtonsoft.Json with different casing — IDs are case-insensitive, so
+    # each is one package. System.Text.Json resolves differently per
+    # framework, so both of its versions must survive.
+    path = FIXTURES / "nuget" / "packages.lock.json"
+    pairs = [(package.name, package.version) for package in nuget.parse(path).packages]
+
+    assert len(pairs) == len(set(pairs))
+    assert pairs.count(("Serilog", "4.0.0")) == 1
+    assert [name for name, _ in pairs].count("newtonsoft.json") == 0
+    assert sorted(v for n, v in pairs if n == "System.Text.Json") == ["6.0.10", "8.0.4"]
+
+
+def test_nuget_skips_project_references() -> None:
+    # `"type": "Project"` is a sibling project, not a registry package.
+    path = FIXTURES / "nuget" / "packages.lock.json"
+
+    assert all(p.name != "MyApp.Contracts" for p in nuget.parse(path).packages)
+
+
+def test_cli_discovers_nuget_lockfile() -> None:
+    path = FIXTURES / "nuget" / "packages.lock.json"
+
+    assert _discover_targets(path) == [(path, nuget.parse)]
+
+
+def test_nuget_corrupted_json_raises_parse_error(tmp_path: Path) -> None:
+    bad = tmp_path / "packages.lock.json"
+    bad.write_text('{"dependencies": {', encoding="utf-8")
+
+    with pytest.raises(ParseError) as excinfo:
+        nuget.parse(bad)
+
+    assert "JSON" in str(excinfo.value)
+
+
+def test_nuget_missing_file_raises_parse_error(tmp_path: Path) -> None:
+    with pytest.raises(ParseError):
+        nuget.parse(tmp_path / "absent.json")
 
 
 # ---------------------------------------------------------------------------

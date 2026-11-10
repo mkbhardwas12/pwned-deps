@@ -43,6 +43,7 @@ from pwned_deps.parsers import gem as gem_parser
 from pwned_deps.parsers import go as go_parser
 from pwned_deps.parsers import maven as maven_parser
 from pwned_deps.parsers import npm as npm_parser
+from pwned_deps.parsers import nuget as nuget_parser
 from pwned_deps.parsers import pnpm as pnpm_parser
 from pwned_deps.parsers import pypi as pypi_parser
 from pwned_deps.parsers import sbom as sbom_parser
@@ -67,6 +68,7 @@ _DETECTORS: list[tuple[str, object]] = [
     ("uv.lock", pypi_parser.parse),
     ("Cargo.lock", cargo_parser.parse),
     ("composer.lock", composer_parser.parse),
+    ("packages.lock.json", nuget_parser.parse),
     ("go.sum", go_parser.parse),
     ("pom.xml", maven_parser.parse),
     ("Gemfile.lock", gem_parser.parse),

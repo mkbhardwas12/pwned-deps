@@ -5,7 +5,7 @@
 >
 > A multi-ecosystem scanner for compromised package versions —
 > account hijacks, typosquats, dependency-confusion, retroactively
-> trojanised releases — across npm, PyPI, Maven, Cargo, Go, RubyGems, Packagist.
+> trojanised releases — across npm, PyPI, Maven, Cargo, Go, RubyGems, Packagist, NuGet.
 
 [![CI](https://github.com/mkbhardwas12/pwned-deps/actions/workflows/ci.yml/badge.svg)](https://github.com/mkbhardwas12/pwned-deps/actions/workflows/ci.yml)
 [![PyPI version](https://img.shields.io/pypi/v/pwned-deps.svg)](https://pypi.org/project/pwned-deps/)
@@ -70,7 +70,8 @@ replays `pwned-deps check` against real campaign data.
 - [Maintainer](#maintainer)
 
 `pwned-deps` is a Python CLI that takes one or more developer lockfiles
-(`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `composer.lock`, `requirements.txt`,
+(`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `composer.lock`,
+`packages.lock.json`, `requirements.txt`,
 `Pipfile.lock`, `poetry.lock`, `uv.lock`, `Cargo.lock`, `go.sum`,
 `pom.xml`, `Gemfile.lock`) and tells you, in seconds, whether you've
 installed a package version that's publicly flagged as compromised —
@@ -83,7 +84,7 @@ published malicious versions.
 |-----------------------|-----------------------------------------------------------------|
 | **What**              | A 5-second red/green answer to "is anything in my lockfile pwned?" |
 | **Who it's for**      | Application devs, SREs, AppSec / DFIR responders during an active incident |
-| **Inputs**            | Lockfiles (npm, PyPI, Maven, Cargo, Go, RubyGems, Packagist) and CycloneDX / SPDX SBOMs — never source, never tarballs |
+| **Inputs**            | Lockfiles (npm, PyPI, Maven, Cargo, Go, RubyGems, Packagist, NuGet) and CycloneDX / SPDX SBOMs — never source, never tarballs |
 | **Data sources**      | [OSV.dev](https://osv.dev) public API + curated `extras.json` campaign feed (signed, sigstore + Rekor) + registry publish timestamps (npm, PyPI) to resolve maintainer-compromise windows and enforce `--min-age` |
 | **Outputs**           | Coloured terminal report, JSON, SARIF (GitHub Code Scanning) |
 | **Four commands**     | `pwned-deps check <lockfile>` (one-shot scan) · `pwned-deps audit-repo <dir>` (forensic file-IoC scan) · `pwned-deps watch <lockfile> --baseline <file>` (daily baseline + delta alert) · `pwned-deps report <scans> -o <html>` (org-wide HTML dashboard) |
@@ -371,7 +372,8 @@ and you have a same-day signal for every campaign that lands.
 | Maven     | `pom.xml` (`<dependencies>` + `<dependencyManagement>`)   |
 | RubyGems  | `Gemfile.lock`                                            |
 | Packagist | `composer.lock`                                           |
-| SBOM      | CycloneDX / SPDX JSON — `bom.json`, `*.cdx.json`, `*.spdx.json` (any ecosystem above, read from the `purl`) |
+| NuGet     | `packages.lock.json` (`dotnet restore --use-lock-file`)   |
+| SBOM      | CycloneDX / SPDX JSON — `bom.json`, `*.cdx.json`, `*.spdx.json` (any ecosystem above except NuGet, read from the `purl`) |
 
 Loose pins in `requirements.txt` (`>=`, `~=`, `<`, `==1.2.*`) and Maven
 property-variable versions (`${spring.version}`) are parsed but marked
